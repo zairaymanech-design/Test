@@ -1,11 +1,10 @@
-7
 import { Component, OnInit } from '@angular/core';
 import { ChartConfiguration, ChartType } from 'chart.js';
 
-type Row = [number, string, string, number];
+type Row = [number, string, string, number]; // [ID, label, type, value]
 
 @Component({
-  selector: 'app-merged-pie',
+  selector: 'app-unique-pie',
   template: `
     <div class="chart-wrapper">
       <canvas baseChart
@@ -16,10 +15,10 @@ type Row = [number, string, string, number];
     </div>
   `,
   styles: [`
-    .chart-wrapper { width: 400px; margin: 2rem auto; }
+    .chart-wrapper { width: 600px; margin: 2rem auto; }
   `]
 })
-export class MergedPieComponent implements OnInit {
+export class UniquePieComponent implements OnInit {
   chartType: ChartType = 'pie';
   chartData!: ChartConfiguration<'pie'>['data'];
 
@@ -27,20 +26,23 @@ export class MergedPieComponent implements OnInit {
     responsive: true,
     plugins: {
       legend: { position: 'bottom' },
-      tooltip: { callbacks: {
-        label: (ctx) => `${ctx.label}: ${ctx.parsed}`
-      }}
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.label}: ${ctx.parsed}`
+        }
+      }
     }
   };
 
-  // 🔹 Your raw array directly
+  // 🔹 Your array data
   dataArray: Row[] = [
     [1, 'Apples', 'Fruit', 30],
     [1, 'Carrots', 'Vegetable', 20],
     [2, 'Bananas', 'Fruit', 15],
     [2, 'Broccoli', 'Vegetable', 25],
     [3, 'Steak', 'Meat', 40],
-    [3, 'Chicken', 'Meat', 35]
+    [3, 'Chicken', 'Meat', 35],
+    // ... add up to 220+ rows
   ];
 
   ngOnInit(): void {
@@ -48,7 +50,7 @@ export class MergedPieComponent implements OnInit {
   }
 
   private transformData(rows: Row[]): ChartConfiguration<'pie'>['data'] {
-    // Group by ID first
+    // Merge duplicate IDs into single group slices (but keep individual type values separate)
     const grouped: Record<number, Row[]> = {};
     rows.forEach(row => {
       const [id] = row;
@@ -58,13 +60,18 @@ export class MergedPieComponent implements OnInit {
 
     const labels: string[] = [];
     const values: number[] = [];
-    const colors: string[] = [];
+    
+    // Generate a color for each slice
+    const totalSlices = rows.length;
+    const colors = this.generateColors(totalSlices);
+
+    let colorIndex = 0;
 
     Object.entries(grouped).forEach(([id, group]) => {
       group.forEach(([_, label, type, value]) => {
         labels.push(`ID ${id} - ${label} (${type})`);
         values.push(value);
-        colors.push(this.randomColor());
+        colorIndex++; // advance color index
       });
     });
 
@@ -72,33 +79,27 @@ export class MergedPieComponent implements OnInit {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: colors,
-        borderColor: '#fff',
-        borderWidth: 2
+        backgroundColor: this.generateColors(values.length), // unique vivid colors
+        borderColor: '#000',
+        borderWidth: 1
       }]
     };
   }
 
-  private randomColor(): string {
-    // Generates a random bright color
-    const hue = Math.floor(Math.random() * 360);
-    const saturation = 70 + Math.random() * 20; // 70–90%
-    const lightness = 45 + Math.random() * 10;  // 45–55%
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  // Generates N unique vivid colors
+  private generateColors(n: number): string[] {
+    const colors: string[] = [];
+    for (let i = 0; i < n; i++) {
+      colors.push(this.randomColor());
+    }
+    return colors;
   }
 
-
-
-
-private randomColor(): string {
-
-const hue = Math.floor (Math.random() *
-
-360);
-
-const saturation = 80 + Math.random() 15; // vivid const lightness = 35 + Math.random() *
-
-10; // darker return `hsl(${hue}, ${saturation}%, $ {lightness}%)`;
-
-}
+  // Random vivid color (RGB) — never white/pale
+  private randomColor(): string {
+    const r = Math.floor(Math.random() * 156) + 50; // 50–205
+    const g = Math.floor(Math.random() * 156) + 50;
+    const b = Math.floor(Math.random() * 156) + 50;
+    return `rgb(${r}, ${g}, ${b})`;
+  }
 }
