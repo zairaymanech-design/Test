@@ -1,3 +1,38 @@
+chartOptions: ChartConfiguration<'pie'>['options'] = {
+  responsive: true,
+  plugins: {
+    legend: {
+      display: true,
+      position: 'bottom',
+      labels: {
+        filter: (legendItem, chart) => {
+          // Example: only show slices with value > 0
+          const dataset = chart.data.datasets[legendItem.datasetIndex];
+          const value = (dataset.data[legendItem.index] as number) ?? 0;
+          return value > 0;
+        },
+        font: { size: 12 },
+        usePointStyle: true,
+      }
+    },
+    tooltip: {
+      enabled: true,
+      callbacks: {
+        label: (ctx) => `${ctx.label}: ${ctx.parsed}`
+      }
+    }
+  }
+};
+
+
+
+
+
+
+
+
+
+
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChartConfiguration, ChartType } from 'chart.js';
