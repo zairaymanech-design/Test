@@ -1,3 +1,28 @@
+<div class="legend">
+  <div *ngFor="let item of chartData.labels; let i = index">
+    <span class="color-box" [style.backgroundColor]="chartData.datasets[0].backgroundColor[i]"></span>
+    {{ item }}: {{ chartData.datasets[0].data[i] }}
+  </div>
+</div>
+
+
+
+.legend {
+  max-height: 300px;
+  overflow-y: scroll;
+}
+.color-box {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 5px;
+}
+
+
+
+
+
+
 import { Component, OnInit } from '@angular/core';
 import { ChartConfiguration, ChartType } from 'chart.js';
 
