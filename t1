@@ -1,67 +1,142 @@
-legendFilter: string = '';
-isSliceVisible: boolean[] = [];
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChartConfiguration, ChartType, BaseChartDirective } from 'chart.js';
 
-ngOnInit() {
-  this.fetchData();
-}
+type Row = [number, string, string, number]; // [ID, label, type, value]
 
-private transformData(rows: Row[]): ChartConfiguration<'pie'>['data'] {
-  const labels: string[] = [];
-  const values: number[] = [];
-  const colors: string[] = [];
+@Component({
+  selector: 'app-pie-chart',
+  templateUrl: './pie-chart.component.html',
+  styleUrls: ['./pie-chart.component.css']
+})
+export class PieChartComponent implements OnInit {
+  @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
 
-  rows.forEach(([id, label, type, value]) => {
-    labels.push(`ID ${id} - ${label} (${type})`);
-    values.push(value ?? 0);
-    colors.push(this.randomColor());
-  });
-
-  // Initialize slice visibility array
-  this.isSliceVisible = new Array(values.length).fill(true);
-
-  return {
-    labels,
-    datasets: [{
-      data: values,
-      backgroundColor: colors,
-      borderColor: '#000',
-      borderWidth: 1
-    }]
+  chartType: ChartType = 'pie';
+  chartData!: ChartConfiguration<'pie'>['data'];
+  chartOptions: ChartConfiguration<'pie'>['options'] = {
+    responsive: true,
+    plugins: {
+      legend: { display: false }, // hide default legend
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: (ctx) => `${ctx.label}: ${ctx.parsed}`
+        }
+      }
+    }
   };
+
+  legendFilter: string = '';
+  isSliceVisible: boolean[] = [];
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.fetchData();
+  }
+
+  private fetchData() {
+    // Replace with your API URL
+    this.http.get<Row[]>('https://api.example.com/data').subscribe({
+      next: data => this.buildChartData(data),
+      error: err => console.error('API fetch error', err)
+    });
+  }
+
+  private buildChartData(rows: Row[]) {
+    const labels: string[] = [];
+    const values: number[] = [];
+    const colors: string[] = [];
+
+    rows.forEach(([id, label, type, value]) => {
+      labels.push(`ID ${id} - ${label} (${type})`);
+      values.push(value ?? 0);
+      colors.push(this.randomColor());
+    });
+
+    this.isSliceVisible = new Array(values.length).fill(true);
+
+    this.chartData = {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: '#000',
+        borderWidth: 1
+      }]
+    };
+  }
+
+  // Generate vivid random color
+  private randomColor(): string {
+    const r = Math.floor(Math.random() * 156) + 50;
+    const g = Math.floor(Math.random() * 156) + 50;
+    const b = Math.floor(Math.random() * 156) + 50;
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  getColor(index: number): string {
+    const dataset = this.chartData?.datasets?.[0];
+    const colors = dataset?.backgroundColor as string[];
+    return colors?.[index] ?? '#000';
+  }
+
+  getValue(index: number): number {
+    const dataset = this.chartData?.datasets?.[0];
+    return (dataset?.data[index] as number) ?? 0;
+  }
+
+  filteredIndices(): number[] {
+    if (!this.chartData) return [];
+    return this.chartData.labels
+      .map((_, idx) => idx)
+      .filter(idx =>
+        this.chartData.labels[idx].toLowerCase().includes(this.legendFilter.toLowerCase())
+      );
+  }
+
+  toggleSlice(index: number) {
+    if (!this.chartData) return;
+    const dataset = this.chartData.datasets[0];
+    this.isSliceVisible[index] = !this.isSliceVisible[index];
+    const originalValue = dataset.data[index] as number;
+    dataset.data[index] = this.isSliceVisible[index] ? originalValue : 0;
+    this.chart?.update();
+  }
 }
 
-filteredIndices(): number[] {
-  if (!this.chartData) return [];
-  return this.chartData.labels
-    .map((_, idx) => idx)
-    .filter(idx =>
-      this.chartData.labels[idx].toLowerCase().includes(this.legendFilter.toLowerCase())
-    );
+
+
+
+
+.chart-wrapper {
+  width: 600px;
+  margin: 2rem auto;
 }
 
-toggleSlice(index: number) {
-  if (!this.chartData) return;
-  const dataset = this.chartData.datasets[0];
-  this.isSliceVisible[index] = !this.isSliceVisible[index];
-
-  // Set value to 0 if hidden, restore original if visible
-  const originalValue = dataset.data[index] as number;
-  dataset.data[index] = this.isSliceVisible[index] ? originalValue : 0;
-
-  // Update chart
-  this.chart?.update(); // requires @ViewChild reference to chart
+.legend {
+  max-height: 400px;
+  overflow-y: auto;
+  width: 600px;
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  margin: 1rem auto;
+  cursor: pointer;
 }
 
-getColor(index: number): string {
-  const dataset = this.chartData?.datasets?.[0];
-  const colors = dataset?.backgroundColor as string[];
-  return colors?.[index] ?? '#000';
+.color-box {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 5px;
 }
 
-getValue(index: number): number {
-  const dataset = this.chartData?.datasets?.[0];
-  return (dataset?.data[index] as number) ?? 0;
+.legend div.inactive {
+  opacity: 0.4;
 }
+
+
 
 
 
@@ -74,10 +149,10 @@ getValue(index: number): number {
     </canvas>
   </div>
 
-  <!-- Clickable, scrollable legend -->
-  <input type="text" [(ngModel)]="legendFilter" placeholder="Search..." />
+  <!-- Searchable, scrollable, clickable legend -->
+  <input type="text" [(ngModel)]="legendFilter" placeholder="Search legend..." />
   <div class="legend">
-    <div *ngFor="let i of filteredIndices()" (click)="toggleSlice(i)" 
+    <div *ngFor="let i of filteredIndices()" (click)="toggleSlice(i)"
          [class.inactive]="!isSliceVisible[i]">
       <span class="color-box" [style.backgroundColor]="getColor(i)"></span>
       {{ chartData.labels[i] }}: {{ getValue(i) }}
