@@ -4,31 +4,30 @@ import { ChartConfiguration, ChartType } from 'chart.js';
 type Row = [number, string, string, number];
 
 @Component({
-  selector: 'app-my-chart',
+  selector: 'app-one-pie',
   template: `
-    <div *ngFor="let chart of charts" class="chart-container">
-      <h3>Group {{ chart.id }}</h3>
+    <div class="chart-wrapper">
       <canvas baseChart
+        [data]="chartData"
         [type]="chartType"
-        [data]="chart.data"
         [options]="chartOptions">
       </canvas>
     </div>
   `,
   styles: [`
-    .chart-container { width: 300px; display: inline-block; margin: 1rem; text-align: center; }
+    .chart-wrapper { width: 400px; margin: 2rem auto; }
   `]
 })
-export class MyChartComponent implements OnInit {
+export class OnePieComponent implements OnInit {
   chartType: ChartType = 'pie';
-  charts: { id: number, data: ChartConfiguration<'pie'>['data'] }[] = [];
+  chartData!: ChartConfiguration<'pie'>['data'];
 
   chartOptions: ChartConfiguration<'pie'>['options'] = {
     responsive: true,
     plugins: { legend: { position: 'bottom' } }
   };
 
-  // 🔹 Your data array directly
+  // 🔹 Your raw array
   dataArray: Row[] = [
     [1, 'Apples', 'Fruit', 30],
     [1, 'Carrots', 'Vegetable', 20],
@@ -39,40 +38,32 @@ export class MyChartComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.charts = this.transformData(this.dataArray);
+    this.chartData = this.transformData(this.dataArray);
   }
 
-  private transformData(rows: Row[]): { id: number, data: ChartConfiguration<'pie'>['data'] }[] {
-    const grouped: Record<number, { labels: string[], values: number[], colors: string[] }> = {};
+  private transformData(data: Row[]): ChartConfiguration<'pie'>['data'] {
+    const labels = data.map(row => `${row[1]} (${row[2]})`); // Label (type)
+    const values = data.map(row => row[3]); // Value
+    const colors = data.map(() => this.randomColor()); // Random color for each slice
 
-    rows.forEach(([id, label, type, value]) => {
-      if (!grouped[id]) {
-        grouped[id] = { labels: [], values: [], colors: [] };
-      }
-      grouped[id].labels.push(label);
-      grouped[id].values.push(value);
-      grouped[id].colors.push(this.getColorForType(type));
-    });
-
-    return Object.entries(grouped).map(([id, g]) => ({
-      id: +id,
-      data: {
-        labels: g.labels,
-        datasets: [{
-          data: g.values,
-          backgroundColor: g.colors
-        }]
-      }
-    }));
-  }
-
-  private getColorForType(type: string): string {
-    const colorMap: Record<string, string> = {
-      Fruit: '#FF6384',       // pink
-      Vegetable: '#36A2EB',   // blue
-      Meat: '#FFCE56',        // yellow
-      Default: '#AAAAAA'
+    return {
+      labels,
+      datasets: [
+        {
+          data: values,
+          backgroundColor: colors,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }
+      ]
     };
-    return colorMap[type] || colorMap.Default;
+  }
+
+  private randomColor(): string {
+    // Generates a bright random color (HSL format)
+    const hue = Math.floor(Math.random() * 360);
+    const saturation = 70 + Math.random() * 20; // 70–90%
+    const lightness = 50 + Math.random() * 10;  // 50–60%
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
 }
