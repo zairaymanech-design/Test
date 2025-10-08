@@ -1,161 +1,70 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { ChartConfiguration, ChartType, BaseChartDirective } from 'chart.js';
-
-type Row = [number, string, string, number]; // [ID, label, type, value]
+import { Component, OnInit } from '@angular/core';
+import { ChartData, ChartOptions } from 'chart.js';
 
 @Component({
   selector: 'app-pie-chart',
-  templateUrl: './pie-chart.component.html',
-  styleUrls: ['./pie-chart.component.css']
+  template: `<div style="display: block">
+               <canvas baseChart
+                       [data]="pieChartData"
+                       [options]="pieChartOptions"
+                       [type]="'pie'">
+               </canvas>
+             </div>`,
 })
 export class PieChartComponent implements OnInit {
-  @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
+  pieChartData!: ChartData<'pie'>;
+  pieChartOptions!: ChartOptions<'pie'>;
 
-  chartType: ChartType = 'pie';
-  chartData!: ChartConfiguration<'pie'>['data'];
-  chartOptions: ChartConfiguration<'pie'>['options'] = {
-    responsive: true,
-    plugins: {
-      legend: { display: false }, // hide default legend
-      tooltip: {
-        enabled: true,
-        callbacks: {
-          label: (ctx) => `${ctx.label}: ${ctx.parsed}`
-        }
-      }
-    }
-  };
+  ngOnInit() {
+    const dataCount = 200;
+    const labels = Array.from({ length: dataCount }, (_, i) => `Item ${i + 1}`);
+    const dataValues = Array.from({ length: dataCount }, () => Math.floor(Math.random() * 100) + 1);
+    const backgroundColors = this.generatePastelColors(dataCount);
 
-  legendFilter: string = '';
-  isSliceVisible: boolean[] = [];
-
-  constructor(private http: HttpClient) {}
-
-  ngOnInit(): void {
-    this.fetchData();
-  }
-
-  private fetchData() {
-    // Replace with your API URL
-    this.http.get<Row[]>('https://api.example.com/data').subscribe({
-      next: data => this.buildChartData(data),
-      error: err => console.error('API fetch error', err)
-    });
-  }
-
-  private buildChartData(rows: Row[]) {
-    const labels: string[] = [];
-    const values: number[] = [];
-    const colors: string[] = [];
-
-    rows.forEach(([id, label, type, value]) => {
-      labels.push(`ID ${id} - ${label} (${type})`);
-      values.push(value ?? 0);
-      colors.push(this.randomColor());
-    });
-
-    this.isSliceVisible = new Array(values.length).fill(true);
-
-    this.chartData = {
+    this.pieChartData = {
       labels,
       datasets: [{
-        data: values,
-        backgroundColor: colors,
-        borderColor: '#000',
-        borderWidth: 1
+        data: dataValues,
+        backgroundColor: backgroundColors,
+        borderColor: '#ffffff',
+        borderWidth: 1,
       }]
+    };
+
+    this.pieChartOptions = {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            boxWidth: 12,
+            font: { size: 10 },
+          },
+          onClick: (e, legendItem, legend) => {
+            const index = legendItem.index;
+            const ci = legend.chart;
+            const meta = ci.getDatasetMeta(0);
+            meta.data[index].hidden = !meta.data[index].hidden;
+            ci.update();
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.label}: ${ctx.parsed}`,
+          },
+        },
+      },
     };
   }
 
-  // Generate vivid random color
-  private randomColor(): string {
-    const r = Math.floor(Math.random() * 156) + 50;
-    const g = Math.floor(Math.random() * 156) + 50;
-    const b = Math.floor(Math.random() * 156) + 50;
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-
-  getColor(index: number): string {
-    const dataset = this.chartData?.datasets?.[0];
-    const colors = dataset?.backgroundColor as string[];
-    return colors?.[index] ?? '#000';
-  }
-
-  getValue(index: number): number {
-    const dataset = this.chartData?.datasets?.[0];
-    return (dataset?.data[index] as number) ?? 0;
-  }
-
-  filteredIndices(): number[] {
-    if (!this.chartData) return [];
-    return this.chartData.labels
-      .map((_, idx) => idx)
-      .filter(idx =>
-        this.chartData.labels[idx].toLowerCase().includes(this.legendFilter.toLowerCase())
-      );
-  }
-
-  toggleSlice(index: number) {
-    if (!this.chartData) return;
-    const dataset = this.chartData.datasets[0];
-    this.isSliceVisible[index] = !this.isSliceVisible[index];
-    const originalValue = dataset.data[index] as number;
-    dataset.data[index] = this.isSliceVisible[index] ? originalValue : 0;
-    this.chart?.update();
+  generatePastelColors(count: number): string[] {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+      const hue = (i * 360) / count;
+      const saturation = 70 + Math.random() * 10;
+      const lightness = 75 + Math.random() * 5;
+      colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+    }
+    return colors;
   }
 }
-
-
-
-
-
-.chart-wrapper {
-  width: 600px;
-  margin: 2rem auto;
-}
-
-.legend {
-  max-height: 400px;
-  overflow-y: auto;
-  width: 600px;
-  border: 1px solid #ccc;
-  padding: 0.5rem;
-  margin: 1rem auto;
-  cursor: pointer;
-}
-
-.color-box {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  margin-right: 5px;
-}
-
-.legend div.inactive {
-  opacity: 0.4;
-}
-
-
-
-
-
-<div *ngIf="chartData">
-  <div class="chart-wrapper">
-    <canvas baseChart
-      [data]="chartData"
-      [type]="chartType"
-      [options]="chartOptions">
-    </canvas>
-  </div>
-
-  <!-- Searchable, scrollable, clickable legend -->
-  <input type="text" [(ngModel)]="legendFilter" placeholder="Search legend..." />
-  <div class="legend">
-    <div *ngFor="let i of filteredIndices()" (click)="toggleSlice(i)"
-         [class.inactive]="!isSliceVisible[i]">
-      <span class="color-box" [style.backgroundColor]="getColor(i)"></span>
-      {{ chartData.labels[i] }}: {{ getValue(i) }}
-    </div>
-  </div>
-</div>
