@@ -1,0 +1,78 @@
+import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartType } from 'chart.js';
+
+type Row = [number, string, string, number];
+
+@Component({
+  selector: 'app-my-chart',
+  template: `
+    <div *ngFor="let chart of charts" class="chart-container">
+      <h3>Group {{ chart.id }}</h3>
+      <canvas baseChart
+        [type]="chartType"
+        [data]="chart.data"
+        [options]="chartOptions">
+      </canvas>
+    </div>
+  `,
+  styles: [`
+    .chart-container { width: 300px; display: inline-block; margin: 1rem; text-align: center; }
+  `]
+})
+export class MyChartComponent implements OnInit {
+  chartType: ChartType = 'pie';
+  charts: { id: number, data: ChartConfiguration<'pie'>['data'] }[] = [];
+
+  chartOptions: ChartConfiguration<'pie'>['options'] = {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } }
+  };
+
+  // 🔹 Your data array directly
+  dataArray: Row[] = [
+    [1, 'Apples', 'Fruit', 30],
+    [1, 'Carrots', 'Vegetable', 20],
+    [2, 'Bananas', 'Fruit', 15],
+    [2, 'Broccoli', 'Vegetable', 25],
+    [3, 'Steak', 'Meat', 50],
+    [3, 'Chicken', 'Meat', 30]
+  ];
+
+  ngOnInit(): void {
+    this.charts = this.transformData(this.dataArray);
+  }
+
+  private transformData(rows: Row[]): { id: number, data: ChartConfiguration<'pie'>['data'] }[] {
+    const grouped: Record<number, { labels: string[], values: number[], colors: string[] }> = {};
+
+    rows.forEach(([id, label, type, value]) => {
+      if (!grouped[id]) {
+        grouped[id] = { labels: [], values: [], colors: [] };
+      }
+      grouped[id].labels.push(label);
+      grouped[id].values.push(value);
+      grouped[id].colors.push(this.getColorForType(type));
+    });
+
+    return Object.entries(grouped).map(([id, g]) => ({
+      id: +id,
+      data: {
+        labels: g.labels,
+        datasets: [{
+          data: g.values,
+          backgroundColor: g.colors
+        }]
+      }
+    }));
+  }
+
+  private getColorForType(type: string): string {
+    const colorMap: Record<string, string> = {
+      Fruit: '#FF6384',       // pink
+      Vegetable: '#36A2EB',   // blue
+      Meat: '#FFCE56',        // yellow
+      Default: '#AAAAAA'
+    };
+    return colorMap[type] || colorMap.Default;
+  }
+}
