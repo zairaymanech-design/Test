@@ -1,4 +1,4 @@
-
+7
 import { Component, OnInit } from '@angular/core';
 import { ChartConfiguration, ChartType } from 'chart.js';
 
@@ -86,4 +86,19 @@ export class MergedPieComponent implements OnInit {
     const lightness = 45 + Math.random() * 10;  // 45–55%
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
+
+
+
+
+private randomColor(): string {
+
+const hue = Math.floor (Math.random() *
+
+360);
+
+const saturation = 80 + Math.random() 15; // vivid const lightness = 35 + Math.random() *
+
+10; // darker return `hsl(${hue}, ${saturation}%, $ {lightness}%)`;
+
+}
 }
