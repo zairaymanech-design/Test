@@ -1,66 +1,90 @@
 import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { ChartData, ChartOptions } from 'chart.js';
 
 @Component({
   selector: 'app-pie-chart',
-  template: `<div style="display: block">
-               <canvas baseChart
-                       [data]="pieChartData"
-                       [options]="pieChartOptions"
-                       [type]="'pie'">
-               </canvas>
-             </div>`,
+  template: `
+    <div style="display: block" *ngIf="pieChartData">
+      <canvas baseChart
+              [data]="pieChartData"
+              [options]="pieChartOptions"
+              [type]="'pie'">
+      </canvas>
+    </div>
+
+    <div *ngIf="loading">Loading chart...</div>
+  `,
 })
 export class PieChartComponent implements OnInit {
   pieChartData!: ChartData<'pie'>;
   pieChartOptions!: ChartOptions<'pie'>;
+  loading = true;
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    const dataCount = 200;
-    const labels = Array.from({ length: dataCount }, (_, i) => `Item ${i + 1}`);
-    const dataValues = Array.from({ length: dataCount }, () => Math.floor(Math.random() * 100) + 1);
-    const backgroundColors = this.generatePastelColors(dataCount);
-
-    this.pieChartData = {
-      labels,
-      datasets: [{
-        data: dataValues,
-        backgroundColor: backgroundColors,
-        borderColor: '#ffffff',
-        borderWidth: 1,
-      }]
-    };
-
-    this.pieChartOptions = {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: {
-            boxWidth: 12,
-            font: { size: 10 },
-          },
-          onClick: (e, legendItem, legend) => {
-            const index = legendItem.index;
-            const ci = legend.chart;
-            const meta = ci.getDatasetMeta(0);
-            meta.data[index].hidden = !meta.data[index].hidden;
-            ci.update();
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.label}: ${ctx.parsed}`,
-          },
-        },
-      },
-    };
+    this.loadChartData();
   }
 
+  loadChartData() {
+    this.http.get<any[]>('https://api.example.com/chart-data').subscribe({
+      next: (data) => {
+        const labels = data.map(d => d.name);
+        const values = data.map(d => d.value);
+        const colors = this.generatePastelColors(values.length);
+
+        this.pieChartData = {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderColor: '#ffffff',
+            borderWidth: 1,
+          }]
+        };
+
+        this.pieChartOptions = {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 12,
+                font: { size: 10 },
+              },
+              onClick: (e, legendItem, legend) => {
+                const index = legendItem.index;
+                const ci = legend.chart;
+                const meta = ci.getDatasetMeta(0);
+                meta.data[index].hidden = !meta.data[index].hidden;
+                ci.update();
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed}`,
+              },
+            },
+          },
+        };
+
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading chart data', err);
+        this.loading = false;
+      }
+    });
+  }
+
+  // Generate unique pastel colors (progressive hue)
   generatePastelColors(count: number): string[] {
     const colors = [];
+    const startHue = Math.random() * 360;
+    const hueStep = 360 / count;
     for (let i = 0; i < count; i++) {
-      const hue = (i * 360) / count;
+      const hue = (startHue + i * hueStep) % 360;
       const saturation = 70 + Math.random() * 10;
       const lightness = 75 + Math.random() * 5;
       colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
@@ -68,3 +92,6 @@ export class PieChartComponent implements OnInit {
     return colors;
   }
 }
+
+
+
