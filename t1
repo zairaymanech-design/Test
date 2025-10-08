@@ -2,10 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ChartData, ChartOptions } from 'chart.js';
 
+type ApiItem = [id: number, name: string, type: string, value: number];
+
 @Component({
   selector: 'app-pie-chart',
   template: `
-    <div style="display: block" *ngIf="pieChartData">
+    <div style="display: block" *ngIf="!loading && pieChartData">
       <canvas baseChart
               [data]="pieChartData"
               [options]="pieChartOptions"
@@ -28,10 +30,11 @@ export class PieChartComponent implements OnInit {
   }
 
   loadChartData() {
-    this.http.get<any[]>('https://api.example.com/chart-data').subscribe({
+    this.http.get<ApiItem[]>('https://api.example.com/chart-data').subscribe({
       next: (data) => {
-        const labels = data.map(d => d.name);
-        const values = data.map(d => d.value);
+        // Extract the correct columns from your array
+        const labels = data.map(item => item[1]); // name
+        const values = data.map(item => item[3]); // value
         const colors = this.generatePastelColors(values.length);
 
         this.pieChartData = {
@@ -53,11 +56,13 @@ export class PieChartComponent implements OnInit {
                 boxWidth: 12,
                 font: { size: 10 },
               },
+              // Allow click to toggle visibility
               onClick: (e, legendItem, legend) => {
-                const index = legendItem.index;
+                const index = legendItem.index!;
                 const ci = legend.chart;
                 const meta = ci.getDatasetMeta(0);
-                meta.data[index].hidden = !meta.data[index].hidden;
+                const item = meta.data[index];
+                item.hidden = !item.hidden;
                 ci.update();
               }
             },
@@ -78,7 +83,6 @@ export class PieChartComponent implements OnInit {
     });
   }
 
-  // Generate unique pastel colors (progressive hue)
   generatePastelColors(count: number): string[] {
     const colors = [];
     const startHue = Math.random() * 360;
@@ -92,6 +96,3 @@ export class PieChartComponent implements OnInit {
     return colors;
   }
 }
-
-
-
