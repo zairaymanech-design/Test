@@ -1,10 +1,11 @@
+
 import { Component, OnInit } from '@angular/core';
 import { ChartConfiguration, ChartType } from 'chart.js';
 
 type Row = [number, string, string, number];
 
 @Component({
-  selector: 'app-one-pie',
+  selector: 'app-merged-pie',
   template: `
     <div class="chart-wrapper">
       <canvas baseChart
@@ -18,52 +19,71 @@ type Row = [number, string, string, number];
     .chart-wrapper { width: 400px; margin: 2rem auto; }
   `]
 })
-export class OnePieComponent implements OnInit {
+export class MergedPieComponent implements OnInit {
   chartType: ChartType = 'pie';
   chartData!: ChartConfiguration<'pie'>['data'];
 
   chartOptions: ChartConfiguration<'pie'>['options'] = {
     responsive: true,
-    plugins: { legend: { position: 'bottom' } }
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: {
+        label: (ctx) => `${ctx.label}: ${ctx.parsed}`
+      }}
+    }
   };
 
-  // 🔹 Your raw array
+  // 🔹 Your raw array directly
   dataArray: Row[] = [
     [1, 'Apples', 'Fruit', 30],
     [1, 'Carrots', 'Vegetable', 20],
     [2, 'Bananas', 'Fruit', 15],
     [2, 'Broccoli', 'Vegetable', 25],
-    [3, 'Steak', 'Meat', 50],
-    [3, 'Chicken', 'Meat', 30]
+    [3, 'Steak', 'Meat', 40],
+    [3, 'Chicken', 'Meat', 35]
   ];
 
   ngOnInit(): void {
     this.chartData = this.transformData(this.dataArray);
   }
 
-  private transformData(data: Row[]): ChartConfiguration<'pie'>['data'] {
-    const labels = data.map(row => `${row[1]} (${row[2]})`); // Label (type)
-    const values = data.map(row => row[3]); // Value
-    const colors = data.map(() => this.randomColor()); // Random color for each slice
+  private transformData(rows: Row[]): ChartConfiguration<'pie'>['data'] {
+    // Group by ID first
+    const grouped: Record<number, Row[]> = {};
+    rows.forEach(row => {
+      const [id] = row;
+      if (!grouped[id]) grouped[id] = [];
+      grouped[id].push(row);
+    });
+
+    const labels: string[] = [];
+    const values: number[] = [];
+    const colors: string[] = [];
+
+    Object.entries(grouped).forEach(([id, group]) => {
+      group.forEach(([_, label, type, value]) => {
+        labels.push(`ID ${id} - ${label} (${type})`);
+        values.push(value);
+        colors.push(this.randomColor());
+      });
+    });
 
     return {
       labels,
-      datasets: [
-        {
-          data: values,
-          backgroundColor: colors,
-          borderColor: '#ffffff',
-          borderWidth: 2
-        }
-      ]
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: '#fff',
+        borderWidth: 2
+      }]
     };
   }
 
   private randomColor(): string {
-    // Generates a bright random color (HSL format)
+    // Generates a random bright color
     const hue = Math.floor(Math.random() * 360);
     const saturation = 70 + Math.random() * 20; // 70–90%
-    const lightness = 50 + Math.random() * 10;  // 50–60%
+    const lightness = 45 + Math.random() * 10;  // 45–55%
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
 }
