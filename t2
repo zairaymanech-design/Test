@@ -1,0 +1,120 @@
+<div *ngIf="loading">Loading chart...</div>
+
+<!--
+Option A: let chart auto-resize (recommended)
+-->
+<div style="width: 100%; height: auto;">
+  <canvas baseChart
+          [data]="pieChartData"
+          [options]="pieChartOptions"
+          [type]="'pie'"
+          style="background-color: transparent;">
+  </canvas>
+</div>
+
+<!--
+Option B: if you need fixed height, wrap in scroll container
+Uncomment below instead of the block above.
+
+<div style="height: 500px; overflow-y: auto;">
+  <canvas baseChart
+          [data]="pieChartData"
+          [options]="pieChartOptions"
+          [type]="'pie'"
+          style="background-color: transparent;">
+  </canvas>
+</div>
+-->
+
+
+import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChartData, ChartOptions, Chart } from 'chart.js';
+
+// Backend returns: [[id, name, type, value], ...]
+type ApiItem = [id: number, name: string, type: string, value: number];
+
+@Component({
+  selector: 'app-pie-chart',
+  templateUrl: './pie-chart.component.html',
+  styleUrls: ['./pie-chart.component.css']
+})
+export class PieChartComponent implements OnInit {
+  pieChartData!: ChartData<'pie'>;
+  pieChartOptions!: ChartOptions<'pie'>;
+  loading = true;
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit() {
+    this.loadChartData();
+  }
+
+  loadChartData() {
+    this.http.get<ApiItem[]>('https://api.example.com/chart-data').subscribe({
+      next: (data) => {
+        const labels = data.map(item => item[1]); // name
+        const values = data.map(item => item[3]); // value
+        const colors = labels.map(label => this.generateStablePastelColor(label));
+
+        this.pieChartData = {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderColor: 'rgba(0,0,0,0)', // no white borders
+            borderWidth: 0,
+          }]
+        };
+
+        this.pieChartOptions = {
+          responsive: true,
+          maintainAspectRatio: false, // lets chart grow with legend
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 10,
+                boxHeight: 10,
+                font: { size: 9 },
+              },
+              // enable click to toggle visibility
+              onClick: (e, legendItem, legend) => {
+                const index = legendItem.index!;
+                const ci = legend.chart;
+                const meta = ci.getDatasetMeta(0);
+                const slice = meta.data[index];
+                slice.hidden = !slice.hidden;
+                ci.update();
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${ctx.parsed}`,
+              },
+            },
+          },
+          backgroundColor: 'transparent',
+        };
+
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading chart data', err);
+        this.loading = false;
+      }
+    });
+  }
+
+  // stable pastel color (no white)
+  generateStablePastelColor(label: string): string {
+    let hash = 0;
+    for (let i = 0; i < label.length; i++) {
+      hash = label.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash % 360);
+    const saturation = 65; // pastel but visible
+    const lightness = 60;  // avoid white
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  }
+}
