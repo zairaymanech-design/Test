@@ -1,57 +1,23 @@
-<div class="legend">
-  <div *ngFor="let item of chartData.labels; let i = index">
-    <span class="color-box" [style.backgroundColor]="chartData.datasets[0].backgroundColor[i]"></span>
-    {{ item }}: {{ chartData.datasets[0].data[i] }}
-  </div>
-</div>
-
-
-
-.legend {
-  max-height: 300px;
-  overflow-y: scroll;
-}
-.color-box {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  margin-right: 5px;
-}
-
-
-
-
-
-
 import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { ChartConfiguration, ChartType } from 'chart.js';
 
 type Row = [number, string, string, number]; // [ID, label, type, value]
 
 @Component({
-  selector: 'app-unique-pie',
-  template: `
-    <div class="chart-wrapper">
-      <canvas baseChart
-        [data]="chartData"
-        [type]="chartType"
-        [options]="chartOptions">
-      </canvas>
-    </div>
-  `,
-  styles: [`
-    .chart-wrapper { width: 600px; margin: 2rem auto; }
-  `]
+  selector: 'app-api-pie',
+  templateUrl: './api-pie.component.html',
+  styleUrls: ['./api-pie.component.css']
 })
-export class UniquePieComponent implements OnInit {
+export class ApiPieComponent implements OnInit {
   chartType: ChartType = 'pie';
   chartData!: ChartConfiguration<'pie'>['data'];
-
   chartOptions: ChartConfiguration<'pie'>['options'] = {
     responsive: true,
     plugins: {
-      legend: { position: 'bottom' },
+      legend: { display: false }, // use custom legend
       tooltip: {
+        enabled: true,
         callbacks: {
           label: (ctx) => `${ctx.label}: ${ctx.parsed}`
         }
@@ -59,72 +25,83 @@ export class UniquePieComponent implements OnInit {
     }
   };
 
-  // 🔹 Your array data
-  dataArray: Row[] = [
-    [1, 'Apples', 'Fruit', 30],
-    [1, 'Carrots', 'Vegetable', 20],
-    [2, 'Bananas', 'Fruit', 15],
-    [2, 'Broccoli', 'Vegetable', 25],
-    [3, 'Steak', 'Meat', 40],
-    [3, 'Chicken', 'Meat', 35],
-    // ... add up to 220+ rows
-  ];
+  constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.chartData = this.transformData(this.dataArray);
+    this.fetchData();
+  }
+
+  private fetchData() {
+    // Replace with your API URL
+    this.http.get<Row[]>('https://api.example.com/data').subscribe({
+      next: data => this.chartData = this.transformData(data),
+      error: err => console.error('API fetch error', err)
+    });
   }
 
   private transformData(rows: Row[]): ChartConfiguration<'pie'>['data'] {
-    // Merge duplicate IDs into single group slices (but keep individual type values separate)
-    const grouped: Record<number, Row[]> = {};
-    rows.forEach(row => {
-      const [id] = row;
-      if (!grouped[id]) grouped[id] = [];
-      grouped[id].push(row);
-    });
-
     const labels: string[] = [];
     const values: number[] = [];
-    
-    // Generate a color for each slice
-    const totalSlices = rows.length;
-    const colors = this.generateColors(totalSlices);
+    const colors: string[] = [];
 
-    let colorIndex = 0;
-
-    Object.entries(grouped).forEach(([id, group]) => {
-      group.forEach(([_, label, type, value]) => {
-        labels.push(`ID ${id} - ${label} (${type})`);
-        values.push(value);
-        colorIndex++; // advance color index
-      });
+    rows.forEach(([id, label, type, value]) => {
+      labels.push(`ID ${id} - ${label} (${type})`);
+      values.push(value ?? 0);
+      colors.push(this.randomColor());
     });
 
     return {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: this.generateColors(values.length), // unique vivid colors
+        backgroundColor: colors,
         borderColor: '#000',
         borderWidth: 1
       }]
     };
   }
 
-  // Generates N unique vivid colors
-  private generateColors(n: number): string[] {
-    const colors: string[] = [];
-    for (let i = 0; i < n; i++) {
-      colors.push(this.randomColor());
-    }
-    return colors;
-  }
-
-  // Random vivid color (RGB) — never white/pale
+  // Unique vivid color generator (never white/pale)
   private randomColor(): string {
     const r = Math.floor(Math.random() * 156) + 50; // 50–205
     const g = Math.floor(Math.random() * 156) + 50;
     const b = Math.floor(Math.random() * 156) + 50;
     return `rgb(${r}, ${g}, ${b})`;
   }
+
+  // Helper for template to avoid implicit any
+  getColor(index: number): string {
+    const dataset = this.chartData?.datasets?.[0];
+    if (!dataset) return '#000';
+    const colors = dataset.backgroundColor as string[];
+    return colors[index] ?? '#000';
+  }
+
+  getValue(index: number): number {
+    const dataset = this.chartData?.datasets?.[0];
+    if (!dataset) return 0;
+    return (dataset.data[index] as number) ?? 0;
+  }
 }
+
+
+
+
+
+
+<div *ngIf="chartData">
+  <div class="chart-wrapper">
+    <canvas baseChart
+      [data]="chartData"
+      [type]="chartType"
+      [options]="chartOptions">
+    </canvas>
+  </div>
+
+  <div class="legend">
+    <div *ngFor="let label of chartData.labels; let i = index">
+      <span class="color-box" [style.backgroundColor]="getColor(i)"></span>
+      {{ label }}: {{ getValue(i) }}
+    </div>
+  </div>
+</div>
