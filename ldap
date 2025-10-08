@@ -1,20 +1,9 @@
-import com.unboundid.ldap.sdk.*;
-
-public class LdapGroupCheck {
-    public static void main(String[] args) throws LDAPException {
-        LDAPConnection connection = new LDAPConnection("ldap.example.com", 389, "cn=admin,dc=example,dc=com", "password");
-
-        String groupDn = "cn=MyGroup,ou=Groups,dc=example,dc=com";
-        String userDn = "uid=john.doe,ou=Users,dc=example,dc=com";
-
-        Entry group = connection.getEntry(groupDn, "member");
-
-        if (group != null && group.hasAttributeValue("member", userDn)) {
-            System.out.println("✅ User is in the group");
-        } else {
-            System.out.println("❌ User is not in the group");
-        }
-
-        connection.close();
-    }
+public boolean isUserInGroup(String userUid, String groupCn) {
+    return ldapTemplate.search(
+            query()
+                    .base("ou=Users") // adjust as needed
+                    .where("uid").is(userUid)
+                    .and("memberOf").like("cn=" + groupCn + ",ou=Groups,dc=example,dc=com"),
+            (attributes, name) -> name.toString()
+    ).size() > 0;
 }
