@@ -1,168 +1,70 @@
+import { ChartData } from 'chart.js';
 
-options: {
-  indexAxis: 'y', // horizontal bar
-  responsive: true,
-  maintainAspectRatio: false,
-  scales: {
-    x: {
-      display: false // hide bottom axis
-    },
-    y: {
-      title: {
-        display: true,
-        text: 'Values (on the left)'
-      },
-      ticks: {
-        font: {
-          size: 14
-        }
-      }
-    }
-  },
-  plugins: {
-    legend: {
-      display: false
-    },
-    title: {
-      display: true,
-      text: 'Horizontal Bar Chart (Numbers Left, Labels Inside)'
-    },
-    datalabels: {
-      anchor: 'center',
-      align: 'center',
-      color: 'white',
-      font: {
-        weight: 'bold',
-        size: 13
-      },
-      formatter: (value, ctx) => {
-        // 👇 This displays the label name inside each bar
-        return ctx.chart.data.datasets[0].originalLabels
-          ? ctx.chart.data.datasets[0].originalLabels[ctx.dataIndex]
-          : ctx.chart.data.labels[ctx.dataIndex];
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (ctx) =>
-          `${ctx.chart.data.labels[ctx.dataIndex]}: ${ctx.chart.data.datasets[0].data[ctx.dataIndex]}`
-      }
-    }
-  }
-},
-plugins: [ChartDataLabels]
-
-
-
-
-.chart-container {
-  width: 100%;
-  max-width: 700px;
-  height: 400px;
-  margin: 40px auto;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+export function getBarChartData(labels: string[], values: number[]): ChartData<'bar'> {
+  return {
+    labels: labels, // categories (e.g., product names)
+    datasets: [{
+      label: 'Sales',
+      data: values, // actual numeric values for bar length
+      backgroundColor: 'rgba(54, 162, 235, 0.7)',
+      borderColor: 'rgba(54, 162, 235, 1)',
+      borderWidth: 1
+    }]
+  };
 }
 
 
-import { Component, AfterViewInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Chart, registerables } from 'chart.js';
+
+
+
+
+import { ChartOptions } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-Chart.register(...registerables, ChartDataLabels);
-
-@Component({
-  selector: 'app-charts',
-  templateUrl: './charts.component.html',
-  styleUrls: ['./charts.component.css']
-})
-export class ChartsComponent implements AfterViewInit {
-
-  private chart: Chart | null = null;
-
-  constructor(private http: HttpClient) {}
-
-  ngAfterViewInit(): void {
-    this.loadChartData();
-  }
-
-  loadChartData(): void {
-    // Example: Replace with your real API endpoint
-    // Expected API format: { labels: ['Apples', 'Bananas', 'Cherries'], values: [35, 20, 10] }
-    const apiUrl = 'https://mocki.io/v1/1db6bb0e-d6d0-49de-b24a-8a07b6d7f7da';
-
-    this.http.get<any>(apiUrl).subscribe({
-      next: (res) => {
-        const labels = res.labels;
-        const values = res.values;
-        this.renderChart(labels, values);
+export function getBarChartOptions(labels: string[], values: number[]): ChartOptions<'bar'> {
+  return {
+    indexAxis: 'y', // horizontal
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { display: false }
       },
-      error: (err) => console.error('Error loading chart data:', err)
-    });
-  }
-
-  renderChart(labels: string[], values: number[]): void {
-    if (this.chart) this.chart.destroy();
-
-    this.chart = new Chart('horizontalBarChart', {
-      type: 'bar',
-      data: {
-        labels: values.map(v => v.toString()), // 👈 show numbers on the left (Y axis)
-        datasets: [{
-          label: 'Sales',
-          data: values.map(() => 1), // dummy heights for bars
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }]
-      },
-      options: {
-        indexAxis: 'y', // Horizontal bars
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            display: false // hide bottom axis
-          },
-          y: {
-            title: {
-              display: true,
-              text: 'Values (on the left)'
-            },
-            ticks: {
-              font: { size: 14 }
-            }
-          }
+      y: {
+        title: {
+          display: true,
+          text: 'Values (on the left)'
         },
-        plugins: {
-          legend: { display: false },
-          title: {
-            display: true,
-            text: 'Horizontal Bar Chart (Numbers Left, Labels Inside)'
-          },
-          datalabels: {
-            anchor: 'center',
-            align: 'center',
-            color: 'white',
-            font: { weight: 'bold', size: 13 },
-            formatter: (value, ctx) => labels[ctx.dataIndex] // 👈 show label on each bar
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]}`
-            }
-          }
+        ticks: {
+          font: { size: 14 }
         }
+      }
+    },
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Horizontal Bar Chart (Numbers Left, Labels Inside)'
       },
-      plugins: [ChartDataLabels]
-    });
-  }
+      datalabels: {
+        anchor: 'center',
+        align: 'center',
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 13
+        },
+        formatter: (value, ctx) => labels[ctx.dataIndex] // label inside each bar
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]}`
+        }
+      }
+    }
+  };
 }
 
 
-<div class="chart-container">
-  <canvas id="horizontalBarChart"></canvas>
-</div>
+
