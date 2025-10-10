@@ -1,36 +1,33 @@
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.LdapTemplate;
+import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.stereotype.Service;
 
 @Service
-public class LdapGroupService {
+public class LdapQueryService {
 
     @Autowired
     private LdapTemplate ldapTemplate;
 
-    public boolean isUserInGroup(String username, String groupDn) {
+    /**
+     * Checks if the given user DN is a member of the given group DN.
+     * Works for OpenLDAP (member attribute) and AD (memberOf attribute).
+     */
+    public boolean isUserMemberOfGroup(String username, String groupCn) {
+        // Example DNs:
+        // user:  uid=john,ou=Users,dc=example,dc=com
+        // group: cn=Developers,ou=Groups,dc=example,dc=com
+
         String userDn = String.format("uid=%s,ou=Users,dc=example,dc=com", username);
-        EqualsFilter memberFilter = new EqualsFilter("member", userDn);
-        EqualsFilter groupFilter = new EqualsFilter("distinguishedName", groupDn);
 
-        String searchFilter = String.format("(&(objectClass=groupOfNames)(cn=%s)(member=%s))",
-                extractCnFromDn(groupDn), userDn);
+        // Build LDAP query filter
+        AndFilter filter = new AndFilter();
+        filter.and(new EqualsFilter("objectClass", "groupOfNames")); // for OpenLDAP
+        filter.and(new EqualsFilter("cn", groupCn));
+        filter.and(new EqualsFilter("member", userDn)); // "memberOf" if AD
 
-        return ldapTemplate.search("", searchFilter, (attributes, name) -> name.toString())
-                .stream()
-                .findFirst()
-                .isPresent();
-    }
-
-    private String extractCnFromDn(String dn) {
-        // Example: "cn=Developers,ou=Groups,dc=example,dc=com" → "Developers"
-        String[] parts = dn.split(",");
-        for (String part : parts) {
-            if (part.trim().startsWith("cn=")) {
-                return part.substring(3);
-            }
-        }
-        return dn;
+        // Execute search
+        return !ldapTemplate.search("", filter.encode(), (attributes, name) -> name.toString()).isEmpty();
     }
 }
