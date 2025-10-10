@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ChartConfiguration, ChartEvent } from 'chart.js';
+import { ChartConfiguration, ChartEvent, ActiveElement } from 'chart.js';
 import { SCENARIOS, ResourceData } from './data';
 
 @Component({
@@ -16,26 +16,24 @@ export class DrilldownChartComponent implements OnInit {
   public chartOptions: ChartConfiguration['options'] = {
     responsive: true,
     plugins: {
-      title: {
-        display: true,
-        text: 'Teams Overview'
-      },
+      title: { display: true, text: 'Teams Overview' },
       legend: { display: false }
     },
-    onClick: (event, elements) => this.onChartClick(event, elements)
+    onClick: (event: ChartEvent, elements: ActiveElement[]): void => this.onChartClick(event, elements)
   };
 
-  ngOnInit() {
+  // 🔹 Initialize the chart
+  ngOnInit(): void {
     this.loadTeamLevel();
   }
 
-  // 🧩 1️⃣ Team Level
-  loadTeamLevel() {
+  // 🧩 1️⃣ Load team-level data
+  loadTeamLevel(): void {
     this.currentLevel = 'team';
     this.currentTeam = null;
     this.currentGroup = null;
 
-    const grouped = this.aggregateBy('team');
+    const grouped: Record<string, number> = this.aggregateBy('team');
     this.chartData = {
       labels: Object.keys(grouped),
       datasets: [{ label: 'Total Resources', data: Object.values(grouped) }]
@@ -43,12 +41,13 @@ export class DrilldownChartComponent implements OnInit {
     this.chartOptions.plugins!.title!.text = 'Teams Overview';
   }
 
-  // 🧩 2️⃣ Group Level
-  loadGroupLevel(team: string) {
+  // 🧩 2️⃣ Load group-level data
+  loadGroupLevel(team: string): void {
     this.currentLevel = 'group';
     this.currentTeam = team;
-    const filtered = this.allData.filter(d => d.team === team);
-    const grouped = this.aggregateBy('group', filtered);
+
+    const filtered: ResourceData[] = this.allData.filter(d => d.team === team);
+    const grouped: Record<string, number> = this.aggregateBy('group', filtered);
 
     this.chartData = {
       labels: Object.keys(grouped),
@@ -57,12 +56,13 @@ export class DrilldownChartComponent implements OnInit {
     this.chartOptions.plugins!.title!.text = `Groups in ${team}`;
   }
 
-  // 🧩 3️⃣ Resource Level
-  loadResourceLevel(group: string) {
+  // 🧩 3️⃣ Load resource-level data
+  loadResourceLevel(group: string): void {
     this.currentLevel = 'resource';
     this.currentGroup = group;
-    const filtered = this.allData.filter(d => d.group === group);
-    const grouped = this.aggregateBy('resource', filtered);
+
+    const filtered: ResourceData[] = this.allData.filter(d => d.group === group);
+    const grouped: Record<string, number> = this.aggregateBy('resource', filtered);
 
     this.chartData = {
       labels: Object.keys(grouped),
@@ -71,20 +71,20 @@ export class DrilldownChartComponent implements OnInit {
     this.chartOptions.plugins!.title!.text = `Resources in ${group}`;
   }
 
-  // 📈 Aggregation Utility
-  aggregateBy(key: keyof ResourceData, data: ResourceData[] = this.allData) {
-    return data.reduce((acc, curr) => {
+  // 📈 Aggregation utility
+  aggregateBy(key: keyof ResourceData, data: ResourceData[] = this.allData): Record<string, number> {
+    return data.reduce<Record<string, number>>((acc, curr) => {
       const k = curr[key];
       acc[k] = (acc[k] || 0) + curr.value;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
   }
 
-  // 🖱️ Click Event
-  onChartClick(event: ChartEvent, elements: any[]) {
+  // 🖱️ Click handler
+  onChartClick(event: ChartEvent, elements: ActiveElement[]): void {
     if (!elements.length) return;
-    const index = elements[0].index;
-    const label = this.chartData.labels![index] as string;
+    const index: number = elements[0].index;
+    const label: string = this.chartData.labels![index] as string;
 
     if (this.currentLevel === 'team') {
       this.loadGroupLevel(label);
@@ -93,25 +93,12 @@ export class DrilldownChartComponent implements OnInit {
     }
   }
 
-  // 🔙 Back Button
-  goBack() {
-    if (this.currentLevel === 'resource') this.loadGroupLevel(this.currentTeam!);
-    else if (this.currentLevel === 'group') this.loadTeamLevel();
+  // 🔙 Navigation
+  goBack(): void {
+    if (this.currentLevel === 'resource' && this.currentTeam) {
+      this.loadGroupLevel(this.currentTeam);
+    } else if (this.currentLevel === 'group') {
+      this.loadTeamLevel();
+    }
   }
 }
-
-
-
-
-
-<div class="chart-container" style="position: relative; height: 400px;">
-  <canvas baseChart
-          [data]="chartData"
-          [options]="chartOptions"
-          type="bar">
-  </canvas>
-</div>
-
-<div style="margin-top: 1rem; text-align: center;">
-  <button *ngIf="currentLevel !== 'team'" (click)="goBack()">⬅️ Back</button>
-</div>
