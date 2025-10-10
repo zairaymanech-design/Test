@@ -1,9 +1,7 @@
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.LdapTemplate;
-import org.springframework.ldap.query.LdapQueryBuilder;
+import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.stereotype.Service;
-
-import static org.springframework.ldap.query.LdapQueryBuilder.query;
 
 @Service
 public class LdapGroupService {
@@ -11,22 +9,28 @@ public class LdapGroupService {
     @Autowired
     private LdapTemplate ldapTemplate;
 
-    /**
-     * Checks if a user is in a group, using full DNs (safe).
-     */
-    public boolean isUserInGroup(String userDn, String groupDn) {
-        // Extract the group CN from its DN
-        String groupCn = groupDn.replaceAll("(?i)^cn=([^,]+),.*$", "$1");
+    public boolean isUserInGroup(String username, String groupDn) {
+        String userDn = String.format("uid=%s,ou=Users,dc=example,dc=com", username);
+        EqualsFilter memberFilter = new EqualsFilter("member", userDn);
+        EqualsFilter groupFilter = new EqualsFilter("distinguishedName", groupDn);
 
-        return ldapTemplate.search(
-                query()
-                        // base is relative to contextSource.getBase()
-                        // so if your context base is dc=example,dc=com,
-                        // this searches under ou=Groups,dc=example,dc=com
-                        .base("ou=Groups")
-                        .where("cn").is(groupCn)
-                        .and("member").is(userDn),
-                (attributes, name) -> name.toString()
-        ).size() > 0;
+        String searchFilter = String.format("(&(objectClass=groupOfNames)(cn=%s)(member=%s))",
+                extractCnFromDn(groupDn), userDn);
+
+        return ldapTemplate.search("", searchFilter, (attributes, name) -> name.toString())
+                .stream()
+                .findFirst()
+                .isPresent();
+    }
+
+    private String extractCnFromDn(String dn) {
+        // Example: "cn=Developers,ou=Groups,dc=example,dc=com" → "Developers"
+        String[] parts = dn.split(",");
+        for (String part : parts) {
+            if (part.trim().startsWith("cn=")) {
+                return part.substring(3);
+            }
+        }
+        return dn;
     }
 }
