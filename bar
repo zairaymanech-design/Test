@@ -1,3 +1,60 @@
+
+options: {
+  indexAxis: 'y', // horizontal bar
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    x: {
+      display: false // hide bottom axis
+    },
+    y: {
+      title: {
+        display: true,
+        text: 'Values (on the left)'
+      },
+      ticks: {
+        font: {
+          size: 14
+        }
+      }
+    }
+  },
+  plugins: {
+    legend: {
+      display: false
+    },
+    title: {
+      display: true,
+      text: 'Horizontal Bar Chart (Numbers Left, Labels Inside)'
+    },
+    datalabels: {
+      anchor: 'center',
+      align: 'center',
+      color: 'white',
+      font: {
+        weight: 'bold',
+        size: 13
+      },
+      formatter: (value, ctx) => {
+        // 👇 This displays the label name inside each bar
+        return ctx.chart.data.datasets[0].originalLabels
+          ? ctx.chart.data.datasets[0].originalLabels[ctx.dataIndex]
+          : ctx.chart.data.labels[ctx.dataIndex];
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: (ctx) =>
+          `${ctx.chart.data.labels[ctx.dataIndex]}: ${ctx.chart.data.datasets[0].data[ctx.dataIndex]}`
+      }
+    }
+  }
+},
+plugins: [ChartDataLabels]
+
+
+
+
 .chart-container {
   width: 100%;
   max-width: 700px;
