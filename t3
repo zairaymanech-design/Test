@@ -99,3 +99,19 @@ export class DrilldownChartComponent implements OnInit {
     else if (this.currentLevel === 'group') this.loadTeamLevel();
   }
 }
+
+
+
+
+
+<div class="chart-container" style="position: relative; height: 400px;">
+  <canvas baseChart
+          [data]="chartData"
+          [options]="chartOptions"
+          type="bar">
+  </canvas>
+</div>
+
+<div style="margin-top: 1rem; text-align: center;">
+  <button *ngIf="currentLevel !== 'team'" (click)="goBack()">⬅️ Back</button>
+</div>
