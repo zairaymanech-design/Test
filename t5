@@ -1,0 +1,29 @@
+type Row = [number, string, string, string, number];
+
+const mergeByName = (data: Row[]): Row[] => {
+  const map = new Map<string, Row>();
+
+  for (const row of data) {
+    const name = row[1];
+    if (map.has(name)) {
+      const existing = map.get(name)!;
+      existing[4] += row[4]; // sum the 5th position
+    } else {
+      map.set(name, [...row]); // copy to avoid mutation
+    }
+  }
+
+  return Array.from(map.values());
+};
+
+// Example usage:
+const data: Row[] = [
+  [1, "Alice", "x", "y", 10],
+  [2, "Bob", "x", "y", 5],
+  [3, "Alice", "x", "y", 7],
+  [4, "Charlie", "x", "y", 3],
+  [5, "Bob", "x", "y", 2],
+];
+
+const result = mergeByName(data);
+console.log(result);
