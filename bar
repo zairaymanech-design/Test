@@ -17,6 +17,55 @@ export function getBarChartData(labels: string[], values: number[]): ChartData<'
 
 
 
+import { ChartOptions } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+export function getHorizontalBarChartOptions(labels: string[], values: number[]): ChartOptions<'bar'> {
+  return {
+    indexAxis: 'y',             // horizontal bars
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        display: false          // remove bottom axis completely
+      },
+      y: {
+        title: { display: false },
+        ticks: { font: { size: 14 } }  // category labels (on left)
+      }
+    },
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Horizontal Bar Chart (Label | Bar | Number)'
+      },
+      datalabels: {
+        anchor: 'end',           // position at end of bar
+        align: 'end',            // push number outside bar
+        color: '#000',           // text color
+        font: { weight: 'bold', size: 13 },
+        formatter: (_, ctx) => values[ctx.dataIndex]  // show number at end of bar
+      },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: (ctx) => `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]}`
+        }
+      }
+    }
+  };
+}
+
+
+
+
+
+
+
+
+
+
 
 import { ChartOptions } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
