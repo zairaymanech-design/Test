@@ -1,0 +1,101 @@
+import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartEvent } from 'chart.js';
+import { SCENARIOS, ResourceData } from './data';
+
+@Component({
+  selector: 'app-drilldown-chart',
+  templateUrl: './drilldown-chart.component.html'
+})
+export class DrilldownChartComponent implements OnInit {
+  allData: ResourceData[] = SCENARIOS;
+  currentLevel: 'team' | 'group' | 'resource' = 'team';
+  currentTeam: string | null = null;
+  currentGroup: string | null = null;
+
+  public chartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
+  public chartOptions: ChartConfiguration['options'] = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Teams Overview'
+      },
+      legend: { display: false }
+    },
+    onClick: (event, elements) => this.onChartClick(event, elements)
+  };
+
+  ngOnInit() {
+    this.loadTeamLevel();
+  }
+
+  // 🧩 1️⃣ Team Level
+  loadTeamLevel() {
+    this.currentLevel = 'team';
+    this.currentTeam = null;
+    this.currentGroup = null;
+
+    const grouped = this.aggregateBy('team');
+    this.chartData = {
+      labels: Object.keys(grouped),
+      datasets: [{ label: 'Total Resources', data: Object.values(grouped) }]
+    };
+    this.chartOptions.plugins!.title!.text = 'Teams Overview';
+  }
+
+  // 🧩 2️⃣ Group Level
+  loadGroupLevel(team: string) {
+    this.currentLevel = 'group';
+    this.currentTeam = team;
+    const filtered = this.allData.filter(d => d.team === team);
+    const grouped = this.aggregateBy('group', filtered);
+
+    this.chartData = {
+      labels: Object.keys(grouped),
+      datasets: [{ label: `${team} Groups`, data: Object.values(grouped) }]
+    };
+    this.chartOptions.plugins!.title!.text = `Groups in ${team}`;
+  }
+
+  // 🧩 3️⃣ Resource Level
+  loadResourceLevel(group: string) {
+    this.currentLevel = 'resource';
+    this.currentGroup = group;
+    const filtered = this.allData.filter(d => d.group === group);
+    const grouped = this.aggregateBy('resource', filtered);
+
+    this.chartData = {
+      labels: Object.keys(grouped),
+      datasets: [{ label: `${group} Resources`, data: Object.values(grouped) }]
+    };
+    this.chartOptions.plugins!.title!.text = `Resources in ${group}`;
+  }
+
+  // 📈 Aggregation Utility
+  aggregateBy(key: keyof ResourceData, data: ResourceData[] = this.allData) {
+    return data.reduce((acc, curr) => {
+      const k = curr[key];
+      acc[k] = (acc[k] || 0) + curr.value;
+      return acc;
+    }, {} as Record<string, number>);
+  }
+
+  // 🖱️ Click Event
+  onChartClick(event: ChartEvent, elements: any[]) {
+    if (!elements.length) return;
+    const index = elements[0].index;
+    const label = this.chartData.labels![index] as string;
+
+    if (this.currentLevel === 'team') {
+      this.loadGroupLevel(label);
+    } else if (this.currentLevel === 'group') {
+      this.loadResourceLevel(label);
+    }
+  }
+
+  // 🔙 Back Button
+  goBack() {
+    if (this.currentLevel === 'resource') this.loadGroupLevel(this.currentTeam!);
+    else if (this.currentLevel === 'group') this.loadTeamLevel();
+  }
+}
