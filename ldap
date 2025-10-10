@@ -1,9 +1,32 @@
-public boolean isUserInGroup(String userUid, String groupCn) {
-    return ldapTemplate.search(
-            query()
-                    .base("ou=Users") // adjust as needed
-                    .where("uid").is(userUid)
-                    .and("memberOf").like("cn=" + groupCn + ",ou=Groups,dc=example,dc=com"),
-            (attributes, name) -> name.toString()
-    ).size() > 0;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.ldap.core.LdapTemplate;
+import org.springframework.ldap.query.LdapQueryBuilder;
+import org.springframework.stereotype.Service;
+
+import static org.springframework.ldap.query.LdapQueryBuilder.query;
+
+@Service
+public class LdapGroupService {
+
+    @Autowired
+    private LdapTemplate ldapTemplate;
+
+    /**
+     * Checks if a user is in a group, using full DNs (safe).
+     */
+    public boolean isUserInGroup(String userDn, String groupDn) {
+        // Extract the group CN from its DN
+        String groupCn = groupDn.replaceAll("(?i)^cn=([^,]+),.*$", "$1");
+
+        return ldapTemplate.search(
+                query()
+                        // base is relative to contextSource.getBase()
+                        // so if your context base is dc=example,dc=com,
+                        // this searches under ou=Groups,dc=example,dc=com
+                        .base("ou=Groups")
+                        .where("cn").is(groupCn)
+                        .and("member").is(userDn),
+                (attributes, name) -> name.toString()
+        ).size() > 0;
+    }
 }
