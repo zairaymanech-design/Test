@@ -1,0 +1,85 @@
+<div class="chart-container">
+  <canvas
+    baseChart
+    [data]="pieChartData"
+    [type]="pieChartType"
+    [options]="pieChartOptions">
+  </canvas>
+
+  <!-- Custom scrollable legend -->
+  <div class="chart-legend">
+    <div *ngFor="let label of pieChartData.labels; let i = index" class="legend-item">
+      <span class="legend-color" [style.background]="pieChartData.datasets[0].backgroundColor[i]"></span>
+      <span class="legend-text">{{ label }}</span>
+    </div>
+  </div>
+</div>
+
+
+
+.chart-container {
+  display: flex;
+  align-items: flex-start;
+  max-width: 600px;
+  gap: 12px;
+}
+
+canvas {
+  flex: 1;
+  max-width: 400px;
+  height: 400px !important;
+}
+
+.chart-legend {
+  max-height: 400px;
+  overflow-y: auto;
+  border-left: 1px solid #ccc;
+  padding-left: 10px;
+  font-size: 13px;
+  width: 150px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+
+
+import { ChartConfiguration, ChartType } from 'chart.js';
+
+export class PieChartComponent {
+  public pieChartType: ChartType = 'pie';
+
+  public pieChartData: ChartConfiguration<'pie'>['data'] = {
+    labels: [
+      'Apple', 'Banana', 'Cherry', 'Mango', 'Grape', 'Peach',
+      'Strawberry', 'Watermelon', 'Lemon', 'Orange', 'Pineapple',
+      'Kiwi', 'Blueberry'
+    ],
+    datasets: [{
+      data: [10, 12, 8, 6, 14, 5, 4, 9, 11, 7, 10, 5, 6],
+      backgroundColor: [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+        '#9966FF', '#FF9F40', '#C9CBCF', '#FFCD56',
+        '#66FF66', '#FF6666', '#9999FF', '#66FFFF', '#FFCC99'
+      ]
+    }]
+  };
+
+  public pieChartOptions: ChartConfiguration<'pie'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }, // Hide built-in legend
+    }
+  };
+}
