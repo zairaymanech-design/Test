@@ -1,190 +1,133 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Chart, ChartData, ChartOptions, Plugin } from 'chart.js';
+<div class="chart-wrapper">
+  <!-- Scrollable Legend on the Left -->
+  <div class="chart-legend">
+    <div *ngFor="let label of pieChartData.labels; let i = index" class="legend-item">
+      <span
+        class="legend-color"
+        [style.background]="backgroundColors[i] || '#ccc'">
+      </span>
+      <span class="legend-text">{{ label }}</span>
+    </div>
+  </div>
 
-// API data like: [[id, name, type, value], ...]
-type ApiItem = [id: number, name: string, type: string, value: number];
+  <!-- Pie Chart -->
+  <div class="chart-canvas">
+    <canvas
+      baseChart
+      [data]="pieChartData"
+      [type]="pieChartType"
+      [options]="pieChartOptions">
+    </canvas>
+  </div>
+</div>
+
+import { Component } from '@angular/core';
+import { ChartConfiguration, ChartType } from 'chart.js';
 
 @Component({
   selector: 'app-pie-chart',
   templateUrl: './pie-chart.component.html',
   styleUrls: ['./pie-chart.component.css']
 })
-export class PieChartComponent implements OnInit, AfterViewInit {
-  pieChartData!: ChartData<'pie'>;
-  pieChartOptions!: ChartOptions<'pie'>;
-  loading = true;
+export class PieChartComponent {
+  public pieChartType: ChartType = 'pie';
 
-  // plugin reference
-  htmlLegendPlugin!: Plugin;
+  public pieChartData: ChartConfiguration<'pie'>['data'] = {
+    labels: [
+      'Apple', 'Banana', 'Mango', 'Grape', 'Orange',
+      'Kiwi', 'Pineapple', 'Peach', 'Cherry', 'Strawberry'
+    ],
+    datasets: [{
+      data: [10, 12, 8, 6, 14, 5, 9, 11, 7, 10],
+      backgroundColor: [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+        '#9966FF', '#FF9F40', '#C9CBCF', '#FFCD56',
+        '#66FF66', '#FF6666'
+      ],
+      borderWidth: 1,
+    }]
+  };
 
-  constructor(private http: HttpClient) {}
-
-  ngOnInit() {
-    this.loadChartData();
-    this.registerHtmlLegendPlugin();
-  }
-
-  ngAfterViewInit() {
-    // Chart.js will render plugin automatically after registration
-  }
-
-  loadChartData() {
-    this.http.get<ApiItem[]>('https://api.example.com/chart-data').subscribe({
-      next: (data) => {
-        const labels = data.map(d => d[1]);
-        const values = data.map(d => d[3]);
-        const colors = labels.map(l => this.generateStablePastelColor(l));
-
-        this.pieChartData = {
-          labels,
-          datasets: [{
-            data: values,
-            backgroundColor: colors,
-            borderColor: 'rgba(0,0,0,0)',
-            borderWidth: 0,
-          }]
-        };
-
-        this.pieChartOptions = {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }, // disable default legend
-            htmlLegend: { containerID: 'custom-legend' }
-          },
-          backgroundColor: 'transparent'
-        };
-
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error('Error loading chart data', err);
-        this.loading = false;
-      }
-    });
-  }
-
-  // ✅ Deterministic pastel color generator
-  generateStablePastelColor(label: string): string {
-    let hash = 0;
-    for (let i = 0; i < label.length; i++) {
-      hash = label.charCodeAt(i) + ((hash << 5) - hash);
+  public pieChartOptions: ChartConfiguration<'pie'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }, // We'll render our own legend
+      tooltip: { enabled: true }
     }
-    const hue = Math.abs(hash % 360);
-    const saturation = 65;
-    const lightness = 60;
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  }
+  };
 
-  // ✅ Custom HTML Legend Plugin
-  registerHtmlLegendPlugin() {
-    this.htmlLegendPlugin = {
-      id: 'htmlLegend',
-      afterUpdate: (chart, args, options) => {
-        const containerID = (options as any).containerID;
-        const legendContainer = document.getElementById(containerID);
-        if (!legendContainer) return;
-
-        legendContainer.innerHTML = chart.generateLegend();
-
-        const items = legendContainer.getElementsByTagName('li');
-        Array.from(items).forEach((item, index) => {
-          item.addEventListener('click', () => {
-            const meta = chart.getDatasetMeta(0);
-            const slice = meta.data[index];
-            slice.hidden = !slice.hidden;
-            chart.update();
-          });
-        });
-      }
-    };
-
-    Chart.register(this.htmlLegendPlugin);
+  // ✅ Safe getter for colors (avoids TS2532)
+  get backgroundColors(): string[] {
+    return (this.pieChartData.datasets?.[0]?.backgroundColor as string[]) || [];
   }
 }
 
 
 
-
-
-
-
-<div *ngIf="loading">Loading chart...</div>
-
-<div class="chart-container">
-  <!-- Scrollable custom legend on the LEFT -->
-  <div id="custom-legend" class="legend-container"></div>
-
-  <!-- Pie chart on the RIGHT -->
-  <div class="chart-area">
-    <canvas baseChart
-            [data]="pieChartData"
-            [options]="pieChartOptions"
-            [type]="'pie'"
-            style="background-color: transparent;">
-    </canvas>
-  </div>
-</div>
-
-
-
-
-
-.chart-container {
+.chart-wrapper {
   display: flex;
-  flex-direction: row;
   align-items: flex-start;
-  gap: 1rem;
-  width: 100%;
-  height: 500px; /* You can adjust height */
+  justify-content: center;
+  gap: 12px;
+  max-width: 700px;
+  margin: auto;
+  padding: 10px;
 }
 
-/* Left side legend */
-.legend-container {
-  flex: 1;
-  max-height: 100%;
+/* Left legend */
+.chart-legend {
+  width: 160px;
+  max-height: 400px;
   overflow-y: auto;
-  border-radius: 8px;
-  padding: 0.5rem;
-  background: transparent;
+  border-right: 1px solid #ddd;
+  padding-right: 10px;
+  font-size: 13px;
 }
 
-/* Right side pie chart */
-.chart-area {
-  flex: 2;
-  position: relative;
-  height: 100%;
-}
-
-/* Legend item styling */
-#custom-legend ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-#custom-legend li {
+.legend-item {
   display: flex;
   align-items: center;
-  cursor: pointer;
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-  color: #ddd; /* Adjust for dark/light background */
-  transition: opacity 0.2s;
+  margin-bottom: 6px;
 }
 
-#custom-legend li:hover {
-  opacity: 0.7;
-}
-
-#custom-legend li span {
-  display: inline-block;
+.legend-color {
   width: 12px;
   height: 12px;
-  margin-right: 8px;
   border-radius: 2px;
+  margin-right: 8px;
 }
 
+.chart-canvas {
+  flex: 1;
+  min-width: 300px;
+  height: 400px;
+  position: relative;
+}
 
+/* Responsive behavior: stack on small screens */
+@media (max-width: 600px) {
+  .chart-wrapper {
+    flex-direction: column;
+    align-items: center;
+  }
 
+  .chart-legend {
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+    width: 100%;
+    max-height: 150px;
+    overflow-x: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .legend-item {
+    margin: 4px 8px;
+  }
+
+  .chart-canvas {
+    height: 300px;
+  }
+}
