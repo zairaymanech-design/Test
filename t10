@@ -1,0 +1,24 @@
+function transformArray(data: (string | number)[][]) {
+  const result: Record<string, any> = {};
+
+  for (const [group, year, month, value] of data) {
+    if (!result[group as string]) result[group as string] = {};
+    if (!result[group as string][year as number]) result[group as string][year as number] = {};
+    if (!result[group as string][year as number][month as string]) {
+      result[group as string][year as number][month as string] = {};
+    }
+
+    result[group as string][year as number][month as string] = { value };
+  }
+
+  return result;
+}
+
+// Example usage:
+const arr = [
+  ["A", 2024, "01", 10, "X"],
+  ["A", 2024, "02", 15, "X"],
+  ["B", 2024, "01", 20, "Y"]
+];
+
+console.log(JSON.stringify(transformArray(arr), null, 2));
