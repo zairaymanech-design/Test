@@ -1,0 +1,124 @@
+<div class="chart-container">
+  <!-- Year selector -->
+  <div class="controls">
+    <label for="year">Select Year:</label>
+    <select id="year" [(ngModel)]="selectedYear" (change)="onYearChange()">
+      <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+    </select>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrapper">
+    <canvas
+      baseChart
+      [data]="barChartData"
+      [options]="barChartOptions"
+      [type]="barChartType">
+    </canvas>
+  </div>
+</div>
+
+
+
+import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartType } from 'chart.js';
+
+@Component({
+  selector: 'app-bar-chart',
+  templateUrl: './bar-chart.component.html',
+  styleUrls: ['./bar-chart.component.css']
+})
+export class BarChartComponent implements OnInit {
+  public barChartType: ChartType = 'bar';
+
+  public years: number[] = [2023, 2024, 2025];
+  public selectedYear = 2025;
+
+  public barChartData: ChartConfiguration<'bar'>['data'] = {
+    labels: [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ],
+    datasets: [{
+      label: 'Monthly Sales',
+      data: [],
+      backgroundColor: '#36A2EB',
+      borderRadius: 6,
+    }]
+  };
+
+  public barChartOptions: ChartConfiguration<'bar'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: '#555' }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#555' }
+      }
+    },
+    plugins: {
+      legend: { display: true, position: 'top' },
+      tooltip: { enabled: true }
+    }
+  };
+
+  ngOnInit(): void {
+    this.loadDataForYear(this.selectedYear);
+  }
+
+  /** Simulate fetching or generating data for a given year */
+  loadDataForYear(year: number): void {
+    // Example: Randomized monthly data (replace with your API call)
+    const values = Array.from({ length: 12 }, () => Math.floor(Math.random() * 1000) + 100);
+
+    this.barChartData = {
+      ...this.barChartData,
+      datasets: [{
+        ...this.barChartData.datasets[0],
+        label: `Monthly Sales (${year})`,
+        data: values
+      }]
+    };
+  }
+
+  /** Triggered when the user selects another year */
+  onYearChange(): void {
+    this.loadDataForYear(this.selectedYear);
+  }
+}
+
+
+
+
+
+.chart-container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.controls {
+  margin-bottom: 16px;
+}
+
+.controls label {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+select {
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 400px;
+}
