@@ -9,12 +9,31 @@ import { ChartConfiguration, ChartType } from 'chart.js';
 export class BarChartComponent implements OnInit {
   public barChartType: ChartType = 'bar';
   public years: number[] = [2023, 2024, 2025];
-  public selectedYear = 2025;
+  public selectedYear = 2024;
 
   /** Month labels */
-  public months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  public months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
-  /** Chart data (initialized empty) */
+  /** Your example data structure */
+  private sourceData: Record<string, any[]> = {
+    'Aze': [
+      ['any', 'Aze', 2024, 1, 54, 7],
+      ['any', 'Aze', 2024, 2, 72, 25],
+      ['any', 'Aze', 2024, 3, 104, 9],
+      ['any', 'Aze', 2024, 4, 64, 3],
+      ['any', 'Aze', 2024, 5, 139, 20],
+      ['any', 'Aze', 2024, 6, 86, 23],
+      ['any', 'Aze', 2024, 7, 148, 8],
+      ['any', 'Aze', 2024, 8, 49, 0],
+      ['any', 'Aze', 2024, 9, 44, 22],
+      ['any', 'Aze', 2024, 10, 51, 35],
+    ]
+  };
+
+  /** Chart data */
   public barChartData: ChartConfiguration<'bar'>['data'] = {
     labels: this.months,
     datasets: []
@@ -44,24 +63,37 @@ export class BarChartComponent implements OnInit {
   }
 
   /**
-   * Generate chart data for a given year.
-   * Returns a ChartConfiguration<'bar'>['data'] object.
+   * Build chart data for a given year from the structure
    */
   loadDataForYear(year: number): ChartConfiguration<'bar'>['data'] {
-    // Simulated data: each month has a variable number of values
-    const monthlyValues: number[][] = this.months.map(() =>
-      Array.from({ length: Math.floor(Math.random() * 4) + 1 }, () =>
-        Math.floor(Math.random() * 500) + 50
-      )
-    );
+    const businessKey = 'Aze';
+    const raw = this.sourceData[businessKey] ?? [];
 
-    const maxSegments = Math.max(...monthlyValues.map(m => m.length));
+    // Filter only rows for selected year
+    const filtered = raw.filter(item => item[2] === year);
+
+    // Group by month (index 3)
+    const monthGroups: Record<number, number[]> = {};
+    for (const row of filtered) {
+      const month = row[3]; // 4th element (index 3)
+      const value = row[4]; // main numeric value
+      if (!monthGroups[month]) monthGroups[month] = [];
+      monthGroups[month].push(value);
+    }
+
+    // Find max number of stacked segments
+    const maxSegments = Math.max(...Object.values(monthGroups).map(m => m.length));
+
     const datasets: ChartConfiguration<'bar'>['data']['datasets'] = [];
 
     for (let i = 0; i < maxSegments; i++) {
-      const dataForSegment = monthlyValues.map(values => values[i] ?? 0);
+      const dataForSegment = this.months.map((_, monthIndex) => {
+        const monthNum = monthIndex + 1;
+        return monthGroups[monthNum]?.[i] ?? 0;
+      });
+
       datasets.push({
-        label: `Segment ${i + 1}`,
+        label: `Value ${i + 1}`,
         data: dataForSegment,
         backgroundColor: this.randomColor(),
         borderWidth: 1,
@@ -69,19 +101,17 @@ export class BarChartComponent implements OnInit {
       });
     }
 
-    // Return full typed data object
     return {
       labels: this.months,
       datasets
     };
   }
 
-  /** When the year changes, rebuild the chart data */
   onYearChange(): void {
     this.barChartData = this.loadDataForYear(this.selectedYear);
   }
 
-  /** Utility: generate bright random colors */
+  /** Generate bright random color */
   private randomColor(): string {
     const r = Math.floor(Math.random() * 180 + 50);
     const g = Math.floor(Math.random() * 180 + 50);
