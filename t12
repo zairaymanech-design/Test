@@ -1,0 +1,91 @@
+import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartType } from 'chart.js';
+
+@Component({
+  selector: 'app-bar-chart',
+  templateUrl: './bar-chart.component.html',
+  styleUrls: ['./bar-chart.component.css']
+})
+export class BarChartComponent implements OnInit {
+  public barChartType: ChartType = 'bar';
+  public years: number[] = [2023, 2024, 2025];
+  public selectedYear = 2025;
+
+  /** Month labels */
+  public months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /** Chart data (initialized empty) */
+  public barChartData: ChartConfiguration<'bar'>['data'] = {
+    labels: this.months,
+    datasets: []
+  };
+
+  /** Chart options */
+  public barChartOptions: ChartConfiguration<'bar'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}`
+        }
+      }
+    }
+  };
+
+  ngOnInit(): void {
+    this.barChartData = this.loadDataForYear(this.selectedYear);
+  }
+
+  /**
+   * Generate chart data for a given year.
+   * Returns a ChartConfiguration<'bar'>['data'] object.
+   */
+  loadDataForYear(year: number): ChartConfiguration<'bar'>['data'] {
+    // Simulated data: each month has a variable number of values
+    const monthlyValues: number[][] = this.months.map(() =>
+      Array.from({ length: Math.floor(Math.random() * 4) + 1 }, () =>
+        Math.floor(Math.random() * 500) + 50
+      )
+    );
+
+    const maxSegments = Math.max(...monthlyValues.map(m => m.length));
+    const datasets: ChartConfiguration<'bar'>['data']['datasets'] = [];
+
+    for (let i = 0; i < maxSegments; i++) {
+      const dataForSegment = monthlyValues.map(values => values[i] ?? 0);
+      datasets.push({
+        label: `Segment ${i + 1}`,
+        data: dataForSegment,
+        backgroundColor: this.randomColor(),
+        borderWidth: 1,
+        borderColor: '#fff'
+      });
+    }
+
+    // Return full typed data object
+    return {
+      labels: this.months,
+      datasets
+    };
+  }
+
+  /** When the year changes, rebuild the chart data */
+  onYearChange(): void {
+    this.barChartData = this.loadDataForYear(this.selectedYear);
+  }
+
+  /** Utility: generate bright random colors */
+  private randomColor(): string {
+    const r = Math.floor(Math.random() * 180 + 50);
+    const g = Math.floor(Math.random() * 180 + 50);
+    const b = Math.floor(Math.random() * 180 + 50);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+}
