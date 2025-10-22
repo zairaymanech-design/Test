@@ -119,3 +119,7 @@ export class BarChartComponent implements OnInit {
     return `rgb(${r}, ${g}, ${b})`;
   }
 }
+
+
+
+const pastelColors = [  "#FFD1DC", // pastel pink  "#FFECB3", // light pastel yellow  "#B5EAD7", // mint green  "#C7CEEA", // lavender  "#FFDAC1", // peach  "#E2F0CB", // light green  "#C4FAF8", // aqua blue  "#EADCF8", // soft violet  "#F1E3DD", // blush  "#F3D1F4", // pastel magenta  "#F9E2AE", // butter yellow  "#A8E6CF", // seafoam  "#DCEDC1", // pale lime  "#FFB7B2", // salmon pink  "#FF9AA2", // warm pink  "#BFD8B8", // soft sage  "#D7BDE2", // lilac  "#AEDFF7", // baby blue  "#FFF5BA", // light cream  "#FFC5BF", // rose  "#D4F0F0", // icy blue  "#FFDEDE", // pale rose  "#E5D4EF", // periwinkle  "#CFFFE5", // pastel mint  "#FFE5B9", // soft apricot  "#E3F6F5", // pale cyan  "#F8E1F4", // lavender blush  "#D0E8F2", // powder blue  "#FFF1E6", // ivory peach  "#C6F1E7"  // light turquoise];
