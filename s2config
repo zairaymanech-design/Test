@@ -1,0 +1,21 @@
+postgres:
+  host: localhost
+  port: 5432
+  database: mydb
+  user: postgres
+  password: mypassword
+
+ldap:
+  server: ldap://ldap.company.com
+  user: CN=ldap-reader,OU=ServiceAccounts,DC=company,DC=com
+  password: ldappassword
+  base_dn: DC=company,DC=com
+
+  # Example:
+  # (&(objectClass=group)(cn=mygroup))
+  group_filter: "(&(objectClass=group)(cn={group_name}))"
+
+  member_attribute: member
+
+output:
+  csv_file: group_delta.csv
