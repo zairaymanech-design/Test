@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+
+"""
+Sync checker between PostgreSQL groups/users and LDAP group members.
+
+This version loads configuration from a YAML file.
+
+Requirements:
+    pip install psycopg2-binary ldap3 pyyaml
+
+Run:
+    python group_delta.py
+
+Config file:
+    config.yaml
+"""
+
+import csv
+import yaml
+from typing import Set, Dict, List
+
+import psycopg2
+from ldap3 import Server, Connection, ALL, SUBTREE
+
+# ============================================================
+# LOAD CONFIG
+# ============================================================
+
+
+def load_config(config_path="config.yaml"):
+    with open(config_path, "r") as f:
+        return yaml.safe_load(f)
+
+
+config = load_config()
+
+# PostgreSQL config
+PG_CONFIG = config["postgres"]
+
+# LDAP config
+LDAP_CONFIG = config["ldap"]
+
+# CSV output
+OUTPUT_CSV = config["output"]["csv_file"]
+
+# ============================================================
+# DATABASE FUNCTIONS
+# ============================================================
+
+
+def get_pg_connection():
+    return psycopg2.connect(
+        host=PG_CONFIG["host"],
+        port=PG_CONFIG["port"],
+        dbname=PG_CONFIG["database"],
+        user=PG_CONFIG["user"],
+        password=PG_CONFIG["password"],
+    )
+
+
+def get_all_groups(conn) -> List[Dict]:
+    """
+    Modify query according to your schema.
+    """
+
+    query = """
+        SELECT id, name
+        FROM groups
+        ORDER BY name
+    """
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+
+        rows = cur.fetchall()
+
+    return [{"id": row[0], "name": row[1]} for row in rows]
+
+
+def get_group_users_from_db(conn, group_id: int) -> Set[str]:
+    """
+    Modify query according to your schema.
+    """
+
+    query = """
+        SELECT username
+        FROM group_users
+        WHERE group_id = %s
+    """
+
+    with conn.cursor() as cur:
+        cur.execute(query, (group_id,))
+        rows = cur.fetchall()
+
+    return {row[0].lower() for row in rows}
+
+
+# ============================================================
+# LDAP FUNCTIONS
+# ============================================================
+
+
+def get_ldap_connection():
+    server = Server(
+        LDAP_CONFIG["server"],
+        get_info=ALL,
+    )
+
+    conn = Connection(
+        server,
+        user=LDAP_CONFIG["user"],
+        password=LDAP_CONFIG["password"],
+        auto_bind=True,
+    )
+
+    return conn
+
+
+def get_group_members_from_ldap(ldap_conn, group_name: str) -> Set[str]:
+    """
+    LDAP group lookup.
+
+    Modify search filter if needed.
+    """
+
+    search_filter = LDAP_CONFIG["group_filter"].format(
+        group_name=group_name
+    )
+
+    ldap_conn.search(
+        search_base=LDAP_CONFIG["base_dn"],
+        search_filter=search_filter,
+        search_scope=SUBTREE,
+        attributes=[LDAP_CONFIG["member_attribute"]],
+    )
+
+    if not ldap_conn.entries:
+        print(f"[WARNING] Group not found in LDAP: {group_name}")
+        return set()
+
+    entry = ldap_conn.entries[0]
+
+    members = set()
+
+    member_attr = LDAP_CONFIG["member_attribute"]
+
+    if member_attr not in entry:
+        return members
+
+    for member_dn in entry[member_attr].values:
+        username = extract_username_from_dn(member_dn)
+
+        if username:
+            members.add(username.lower())
+
+    return members
+
+
+def extract_username_from_dn(dn: str) -> str:
+    """
+    Example:
+        CN=john.doe,OU=Users,DC=company,DC=com
+        -> john.doe
+
+    Adjust if needed.
+    """
+
+    try:
+        first_part = dn.split(",")[0]
+
+        if "=" in first_part:
+            return first_part.split("=")[1]
+
+    except Exception:
+        pass
+
+    return ""
+
+
+# ============================================================
+# CSV EXPORT
+# ============================================================
+
+
+def write_csv(results: List[Dict]):
+    with open(OUTPUT_CSV, mode="w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+
+        writer.writerow(
+            [
+                "group_name",
+                "only_in_db",
+                "only_in_ldap",
+            ]
+        )
+
+        for row in results:
+            writer.writerow(
+                [
+                    row["group_name"],
+                    ";".join(sorted(row["only_in_db"])),
+                    ";".join(sorted(row["only_in_ldap"])),
+                ]
+            )
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+
+def main():
+    print("Connecting to PostgreSQL...")
+    pg_conn = get_pg_connection()
+
+    print("Connecting to LDAP...")
+    ldap_conn = get_ldap_connection()
+
+    print("Loading groups from DB...")
+    groups = get_all_groups(pg_conn)
+
+    results = []
+
+    for group in groups:
+        group_id = group["id"]
+        group_name = group["name"]
+
+        print(f"Processing group: {group_name}")
+
+        try:
+            db_users = get_group_users_from_db(
+                pg_conn,
+                group_id,
+            )
+
+            ldap_users = get_group_members_from_ldap(
+                ldap_conn,
+                group_name,
+            )
+
+            only_in_db = db_users - ldap_users
+            only_in_ldap = ldap_users - db_users
+
+            results.append(
+                {
+                    "group_name": group_name,
+                    "only_in_db": only_in_db,
+                    "only_in_ldap": only_in_ldap,
+                }
+            )
+
+        except Exception as e:
+            print(f"[ERROR] Failed processing group {group_name}: {e}")
+
+    print(f"Writing CSV: {OUTPUT_CSV}")
+    write_csv(results)
+
+    pg_conn.close()
+    ldap_conn.unbind()
+
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()
