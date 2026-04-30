@@ -1,13 +1,14 @@
 import csv
 import re
+import gzip
 import argparse
 
 # =========================================================
-# Extract data from log file into CSV
+# Extract structured data from .log or .gz log files
 # =========================================================
 
 parser = argparse.ArgumentParser(
-    description="Extract structured data from log file"
+    description="Extract structured data from log file (.log or .gz)"
 )
 
 parser.add_argument("logfile", help="Path to log file")
@@ -33,7 +34,6 @@ patterns = [
             r"we start to disabled demand id\s+(\S+)\s+and uid\s+(\S+)",
             re.IGNORECASE
         ),
-        "columns": ["Demand_ID", "UID"]
     },
 
     {
@@ -42,7 +42,6 @@ patterns = [
             r"user\s+(\S+)\s+will be remove\s+(\S+)",
             re.IGNORECASE
         ),
-        "columns": ["User", "Target"]
     },
 
     {
@@ -51,7 +50,6 @@ patterns = [
             r"user\s+(\S+)\s+not found for demande\s+(\S+)",
             re.IGNORECASE
         ),
-        "columns": ["User", "Demande"]
     },
 
     {
@@ -60,7 +58,6 @@ patterns = [
             r"we have issue here for user demand\s+(\S+)\s+and user\s+(\S+)",
             re.IGNORECASE
         ),
-        "columns": ["Demand", "User"]
     },
 
     {
@@ -69,15 +66,23 @@ patterns = [
             r"We try to remove user\s+(\S+)\s+from service\s+(\S+)",
             re.IGNORECASE
         ),
-        "columns": ["User", "Service"]
     }
 ]
 
 # =========================================================
-# READ LOG FILE
+# OPEN FILE (.gz OR NORMAL)
 # =========================================================
 
-with open(args.logfile, "r", encoding="utf-8") as file:
+if args.logfile.endswith(".gz"):
+    file_handler = gzip.open(args.logfile, "rt", encoding="utf-8")
+else:
+    file_handler = open(args.logfile, "r", encoding="utf-8")
+
+# =========================================================
+# READ FILE
+# =========================================================
+
+with file_handler as file:
 
     for line in file:
 
@@ -86,13 +91,11 @@ with open(args.logfile, "r", encoding="utf-8") as file:
             match = item["regex"].search(line)
 
             if match:
-                value1 = match.group(1)
-                value2 = match.group(2)
 
                 rows.append([
                     item["type"],
-                    value1,
-                    value2,
+                    match.group(1),
+                    match.group(2),
                     line.strip()
                 ])
 
