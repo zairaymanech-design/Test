@@ -1,0 +1,118 @@
+import csv
+import re
+import argparse
+
+# =========================================================
+# Extract data from log file into CSV
+# =========================================================
+
+parser = argparse.ArgumentParser(
+    description="Extract structured data from log file"
+)
+
+parser.add_argument("logfile", help="Path to log file")
+parser.add_argument(
+    "-o",
+    "--output",
+    default="output.csv",
+    help="Output CSV file"
+)
+
+args = parser.parse_args()
+
+rows = []
+
+# =========================================================
+# PATTERNS
+# =========================================================
+
+patterns = [
+    {
+        "type": "DISABLE_DEMAND",
+        "regex": re.compile(
+            r"we start to disabled demand id\s+(\S+)\s+and uid\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "columns": ["Demand_ID", "UID"]
+    },
+
+    {
+        "type": "USER_REMOVE",
+        "regex": re.compile(
+            r"user\s+(\S+)\s+will be remove\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "columns": ["User", "Target"]
+    },
+
+    {
+        "type": "USER_NOT_FOUND",
+        "regex": re.compile(
+            r"user\s+(\S+)\s+not found for demande\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "columns": ["User", "Demande"]
+    },
+
+    {
+        "type": "ISSUE",
+        "regex": re.compile(
+            r"we have issue here for user demand\s+(\S+)\s+and user\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "columns": ["Demand", "User"]
+    },
+
+    {
+        "type": "REMOVE_SERVICE",
+        "regex": re.compile(
+            r"We try to remove user\s+(\S+)\s+from service\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "columns": ["User", "Service"]
+    }
+]
+
+# =========================================================
+# READ LOG FILE
+# =========================================================
+
+with open(args.logfile, "r", encoding="utf-8") as file:
+
+    for line in file:
+
+        for item in patterns:
+
+            match = item["regex"].search(line)
+
+            if match:
+                value1 = match.group(1)
+                value2 = match.group(2)
+
+                rows.append([
+                    item["type"],
+                    value1,
+                    value2,
+                    line.strip()
+                ])
+
+                break
+
+# =========================================================
+# WRITE CSV
+# =========================================================
+
+with open(args.output, "w", newline="", encoding="utf-8") as csvfile:
+
+    writer = csv.writer(csvfile)
+
+    writer.writerow([
+        "Type",
+        "Column1",
+        "Column2",
+        "Original_Log"
+    ])
+
+    writer.writerows(rows)
+
+print(f"Extracted {len(rows)} records into {args.output}")
