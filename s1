@@ -4,14 +4,17 @@ import gzip
 import argparse
 
 # =========================================================
-# Extract structured data from .log or .gz log files
+# Extract structured data from .log or .gz logs
+# Output columns:
+# Type | DemandID | UID/User | GroupName/Service | Original_Log
 # =========================================================
 
 parser = argparse.ArgumentParser(
-    description="Extract structured data from log file (.log or .gz)"
+    description="Extract structured log information to CSV"
 )
 
-parser.add_argument("logfile", help="Path to log file")
+parser.add_argument("logfile", help="Path to log or gz file")
+
 parser.add_argument(
     "-o",
     "--output",
@@ -28,49 +31,80 @@ rows = []
 # =========================================================
 
 patterns = [
+
+    # we start to disabled demand id 123 and uid ABC
     {
         "type": "DISABLE_DEMAND",
         "regex": re.compile(
             r"we start to disabled demand id\s+(\S+)\s+and uid\s+(\S+)",
             re.IGNORECASE
         ),
+        "extract": lambda m: (
+            m.group(1),   # demandId
+            m.group(2),   # uid
+            ""            # group/service
+        )
     },
 
-    {
-        "type": "USER_REMOVE",
-        "regex": re.compile(
-            r"user\s+(\S+)\s+will be remove\s+(\S+)",
-            re.IGNORECASE
-        ),
-    },
-
+    # user mike not found for demande DEM123
     {
         "type": "USER_NOT_FOUND",
         "regex": re.compile(
             r"user\s+(\S+)\s+not found for demande\s+(\S+)",
             re.IGNORECASE
         ),
+        "extract": lambda m: (
+            m.group(2),   # demandId
+            m.group(1),   # user
+            ""
+        )
     },
 
+    # we have issue here for user demand DEM777 and user alice
     {
         "type": "ISSUE",
         "regex": re.compile(
             r"we have issue here for user demand\s+(\S+)\s+and user\s+(\S+)",
             re.IGNORECASE
         ),
+        "extract": lambda m: (
+            m.group(1),   # demandId
+            m.group(2),   # user
+            ""
+        )
     },
 
+    # We try to remove user bob from service email_service
     {
         "type": "REMOVE_SERVICE",
         "regex": re.compile(
             r"We try to remove user\s+(\S+)\s+from service\s+(\S+)",
             re.IGNORECASE
         ),
+        "extract": lambda m: (
+            "",           # no demandId
+            m.group(1),   # user
+            m.group(2)    # service/group
+        )
+    },
+
+    # user john will be remove admins
+    {
+        "type": "USER_REMOVE",
+        "regex": re.compile(
+            r"user\s+(\S+)\s+will be remove\s+(\S+)",
+            re.IGNORECASE
+        ),
+        "extract": lambda m: (
+            "",           # no demandId
+            m.group(1),   # user
+            m.group(2)    # group
+        )
     }
 ]
 
 # =========================================================
-# OPEN FILE (.gz OR NORMAL)
+# OPEN FILE
 # =========================================================
 
 if args.logfile.endswith(".gz"):
@@ -92,10 +126,13 @@ with file_handler as file:
 
             if match:
 
+                demand_id, uid, group_name = item["extract"](match)
+
                 rows.append([
                     item["type"],
-                    match.group(1),
-                    match.group(2),
+                    demand_id,
+                    uid,
+                    group_name,
                     line.strip()
                 ])
 
@@ -111,8 +148,9 @@ with open(args.output, "w", newline="", encoding="utf-8") as csvfile:
 
     writer.writerow([
         "Type",
-        "Column1",
-        "Column2",
+        "DemandID",
+        "UID_or_User",
+        "Group_or_Service",
         "Original_Log"
     ])
 
