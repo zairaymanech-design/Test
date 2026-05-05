@@ -9,115 +9,156 @@ import pandas as pd
 # Folder containing CSV files
 FOLDER_PATH = "./data"
 
-# File name pattern
-FILE_PATTERN = "output_*.csv"
+# File patterns
+GROUP_PATTERN = "output_group*.csv"
+SERVICE_PATTERN = "output_service*.csv"
 
-# Columns to compare
-# File 1 columns
-FILE1_UID_COLUMN = "UID_or_User"
-FILE1_GROUP_COLUMN = "Group"
+# File 1 (group file) columns
+GROUP_UID_COLUMN = "UID_or_User"
+GROUP_NAME_COLUMN = "Group"
 
-# File 2 columns
-FILE2_UID_COLUMN = "uid"
-FILE2_GROUP_COLUMN = "group_name"
+# File 2 (service file) columns
+SERVICE_UID_COLUMN = "uid"
+SERVICE_GROUP_COLUMN = "group_name"
 
 # Output Excel file
 OUTPUT_FILE = "comparison_output.xlsx"
 
 # =========================================================
-# GET THE 2 LATEST FILES
+# GET LATEST output_group FILE
 # =========================================================
 
-pattern = os.path.join(FOLDER_PATH, FILE_PATTERN)
+group_files = glob.glob(
+    os.path.join(FOLDER_PATH, GROUP_PATTERN)
+)
 
-files = glob.glob(pattern)
+if not group_files:
+    raise Exception("No output_group files found.")
 
-if len(files) < 2:
-    raise Exception("Need at least 2 CSV files in folder.")
+latest_group_file = max(
+    group_files,
+    key=os.path.getmtime
+)
 
-# Sort by modification date (latest first)
-files_sorted = sorted(files, key=os.path.getmtime, reverse=True)
+# =========================================================
+# GET LATEST output_service FILE
+# =========================================================
 
-latest_file = files_sorted[0]
-previous_file = files_sorted[1]
+service_files = glob.glob(
+    os.path.join(FOLDER_PATH, SERVICE_PATTERN)
+)
 
-print(f"Latest file   : {latest_file}")
-print(f"Previous file : {previous_file}")
+if not service_files:
+    raise Exception("No output_service files found.")
+
+latest_service_file = max(
+    service_files,
+    key=os.path.getmtime
+)
+
+print(f"Latest group file   : {latest_group_file}")
+print(f"Latest service file : {latest_service_file}")
 
 # =========================================================
 # LOAD CSV FILES
 # =========================================================
 
-df1 = pd.read_csv(latest_file)
-df2 = pd.read_csv(previous_file)
+df_group = pd.read_csv(latest_group_file)
+df_service = pd.read_csv(latest_service_file)
 
 # =========================================================
-# KEEP ONLY REQUIRED COLUMNS
+# KEEP REQUIRED COLUMNS
 # =========================================================
 
-df1 = df1[[FILE1_UID_COLUMN, FILE1_GROUP_COLUMN]].copy()
-df2 = df2[[FILE2_UID_COLUMN, FILE2_GROUP_COLUMN]].copy()
+df_group = df_group[
+    [GROUP_UID_COLUMN, GROUP_NAME_COLUMN]
+].copy()
+
+df_service = df_service[
+    [SERVICE_UID_COLUMN, SERVICE_GROUP_COLUMN]
+].copy()
 
 # =========================================================
-# RENAME COLUMNS TO STANDARD NAMES
+# RENAME TO COMMON FORMAT
 # =========================================================
 
-df1.columns = ["uid", "group"]
-df2.columns = ["uid", "group"]
+df_group.columns = ["uid", "group"]
+df_service.columns = ["uid", "group"]
 
 # =========================================================
 # CLEAN DATA
 # =========================================================
 
-df1["uid"] = df1["uid"].astype(str).str.strip()
-df1["group"] = df1["group"].astype(str).str.strip()
+df_group["uid"] = (
+    df_group["uid"]
+    .astype(str)
+    .str.strip()
+)
 
-df2["uid"] = df2["uid"].astype(str).str.strip()
-df2["group"] = df2["group"].astype(str).str.strip()
+df_group["group"] = (
+    df_group["group"]
+    .astype(str)
+    .str.strip()
+)
+
+df_service["uid"] = (
+    df_service["uid"]
+    .astype(str)
+    .str.strip()
+)
+
+df_service["group"] = (
+    df_service["group"]
+    .astype(str)
+    .str.strip()
+)
 
 # =========================================================
-# COMPARISON
+# COMPARE FILES
 # =========================================================
 
-# Rows in latest_file but not in previous_file
-only_in_latest = df1.merge(
-    df2,
+# Present in group file only
+only_in_group = df_group.merge(
+    df_service,
     on=["uid", "group"],
     how="left",
     indicator=True
 )
 
-only_in_latest = only_in_latest[
-    only_in_latest["_merge"] == "left_only"
+only_in_group = only_in_group[
+    only_in_group["_merge"] == "left_only"
 ]
 
-# Rows in previous_file but not in latest_file
-only_in_previous = df2.merge(
-    df1,
+# Present in service file only
+only_in_service = df_service.merge(
+    df_group,
     on=["uid", "group"],
     how="left",
     indicator=True
 )
 
-only_in_previous = only_in_previous[
-    only_in_previous["_merge"] == "left_only"
+only_in_service = only_in_service[
+    only_in_service["_merge"] == "left_only"
 ]
 
 # =========================================================
 # EXPORT RESULTS
 # =========================================================
 
-with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+with pd.ExcelWriter(
+    OUTPUT_FILE,
+    engine="openpyxl"
+) as writer:
 
-    only_in_latest.to_excel(
+    only_in_group.to_excel(
         writer,
-        sheet_name="Only_In_Latest",
+        sheet_name="Only_In_Group",
         index=False
     )
 
-    only_in_previous.to_excel(
+    only_in_service.to_excel(
         writer,
-        sheet_name="Only_In_Previous",
+        sheet_name="Only_In_Service",
         index=False
     )
 
