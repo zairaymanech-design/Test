@@ -1,0 +1,125 @@
+import os
+import glob
+import pandas as pd
+
+# =========================================================
+# CONFIGURATION
+# =========================================================
+
+# Folder containing CSV files
+FOLDER_PATH = "./data"
+
+# File name pattern
+FILE_PATTERN = "output_*.csv"
+
+# Columns to compare
+# File 1 columns
+FILE1_UID_COLUMN = "UID_or_User"
+FILE1_GROUP_COLUMN = "Group"
+
+# File 2 columns
+FILE2_UID_COLUMN = "uid"
+FILE2_GROUP_COLUMN = "group_name"
+
+# Output Excel file
+OUTPUT_FILE = "comparison_output.xlsx"
+
+# =========================================================
+# GET THE 2 LATEST FILES
+# =========================================================
+
+pattern = os.path.join(FOLDER_PATH, FILE_PATTERN)
+
+files = glob.glob(pattern)
+
+if len(files) < 2:
+    raise Exception("Need at least 2 CSV files in folder.")
+
+# Sort by modification date (latest first)
+files_sorted = sorted(files, key=os.path.getmtime, reverse=True)
+
+latest_file = files_sorted[0]
+previous_file = files_sorted[1]
+
+print(f"Latest file   : {latest_file}")
+print(f"Previous file : {previous_file}")
+
+# =========================================================
+# LOAD CSV FILES
+# =========================================================
+
+df1 = pd.read_csv(latest_file)
+df2 = pd.read_csv(previous_file)
+
+# =========================================================
+# KEEP ONLY REQUIRED COLUMNS
+# =========================================================
+
+df1 = df1[[FILE1_UID_COLUMN, FILE1_GROUP_COLUMN]].copy()
+df2 = df2[[FILE2_UID_COLUMN, FILE2_GROUP_COLUMN]].copy()
+
+# =========================================================
+# RENAME COLUMNS TO STANDARD NAMES
+# =========================================================
+
+df1.columns = ["uid", "group"]
+df2.columns = ["uid", "group"]
+
+# =========================================================
+# CLEAN DATA
+# =========================================================
+
+df1["uid"] = df1["uid"].astype(str).str.strip()
+df1["group"] = df1["group"].astype(str).str.strip()
+
+df2["uid"] = df2["uid"].astype(str).str.strip()
+df2["group"] = df2["group"].astype(str).str.strip()
+
+# =========================================================
+# COMPARISON
+# =========================================================
+
+# Rows in latest_file but not in previous_file
+only_in_latest = df1.merge(
+    df2,
+    on=["uid", "group"],
+    how="left",
+    indicator=True
+)
+
+only_in_latest = only_in_latest[
+    only_in_latest["_merge"] == "left_only"
+]
+
+# Rows in previous_file but not in latest_file
+only_in_previous = df2.merge(
+    df1,
+    on=["uid", "group"],
+    how="left",
+    indicator=True
+)
+
+only_in_previous = only_in_previous[
+    only_in_previous["_merge"] == "left_only"
+]
+
+# =========================================================
+# EXPORT RESULTS
+# =========================================================
+
+with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+
+    only_in_latest.to_excel(
+        writer,
+        sheet_name="Only_In_Latest",
+        index=False
+    )
+
+    only_in_previous.to_excel(
+        writer,
+        sheet_name="Only_In_Previous",
+        index=False
+    )
+
+print("\nComparison completed.")
+print(f"Output saved to: {OUTPUT_FILE}")
