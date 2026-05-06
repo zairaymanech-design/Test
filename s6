@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+
+import subprocess
+import csv
+import re
+
+# =========================
+# LDAP CONFIG
+# =========================
+LDAP_SERVER = "ldap://your-ldap-server"
+BIND_DN = "cn=admin,dc=example,dc=com"
+PASSWORD = "your-password"
+BASE_DN = "dc=example,dc=com"
+
+# Input CSV containing group names
+INPUT_CSV = "groups.csv"
+
+# Output CSV
+OUTPUT_CSV = "all_group_members.csv"
+
+# =========================
+# READ GROUP NAMES
+# =========================
+group_names = []
+
+with open(INPUT_CSV, newline="", encoding="utf-8") as csvfile:
+    reader = csv.reader(csvfile)
+
+    for row in reader:
+        if row:
+            group_names.append(row[0].strip())
+
+print(f"Loaded {len(group_names)} groups")
+
+# =========================
+# OUTPUT DATA
+# =========================
+all_users = []
+
+# =========================
+# PROCESS EACH GROUP
+# =========================
+for GROUP_CN in group_names:
+
+    print(f"Processing group: {GROUP_CN}")
+
+    # =========================
+    # GET GROUP MEMBERS
+    # =========================
+    group_cmd = [
+        "ldapsearch",
+        "-x",
+        "-H", LDAP_SERVER,
+        "-D", BIND_DN,
+        "-w", PASSWORD,
+        "-b", BASE_DN,
+        f"(&(objectClass=groupOfNames)(cn={GROUP_CN}))",
+        "member"
+    ]
+
+    result = subprocess.run(group_cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"LDAP query failed for group: {GROUP_CN}")
+        continue
+
+    # Extract member DNs
+    member_dns = re.findall(
+        r"^member:\s(.+)$",
+        result.stdout,
+        re.MULTILINE
+    )
+
+    print(f"  Found {len(member_dns)} members")
+
+    # =========================
+    # FETCH USER DETAILS
+    # =========================
+    for dn in member_dns:
+
+        user_cmd = [
+            "ldapsearch",
+            "-x",
+            "-H", LDAP_SERVER,
+            "-D", BIND_DN,
+            "-w", PASSWORD,
+            "-b", dn,
+            "(objectClass=*)",
+            "cn",
+            "mail",
+            "uid"
+        ]
+
+        user_result = subprocess.run(
+            user_cmd,
+            capture_output=True,
+            text=True
+        )
+
+        if user_result.returncode != 0:
+            continue
+
+        cn_match = re.search(
+            r"^cn:\s(.+)$",
+            user_result.stdout,
+            re.MULTILINE
+        )
+
+        mail_match = re.search(
+            r"^mail:\s(.+)$",
+            user_result.stdout,
+            re.MULTILINE
+        )
+
+        uid_match = re.search(
+            r"^uid:\s(.+)$",
+            user_result.stdout,
+            re.MULTILINE
+        )
+
+        all_users.append({
+            "group": GROUP_CN,
+            "cn": cn_match.group(1) if cn_match else "",
+            "uid": uid_match.group(1) if uid_match else "",
+            "mail": mail_match.group(1) if mail_match else "",
+            "dn": dn
+        })
+
+# =========================
+# WRITE OUTPUT CSV
+# =========================
+with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as csvfile:
+
+    fieldnames = ["group", "cn", "uid", "mail", "dn"]
+
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    writer.writeheader()
+
+    for user in all_users:
+        writer.writerow(user)
+
+print(f"\nCSV exported successfully: {OUTPUT_CSV}")
