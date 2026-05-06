@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import subprocess
+import csv
+import re
+
+# =========================
+# CONFIG
+# =========================
+LDAP_SERVER = "ldap://your-ldap-server"
+BIND_DN = "cn=admin,dc=example,dc=com"
+PASSWORD = "your-password"
+BASE_DN = "dc=example,dc=com"
+
+GROUP_CN = "MyGroup"
+
+OUTPUT_CSV = "group_members.csv"
+
+# =========================
+# GET GROUP MEMBERS
+# =========================
+group_cmd = [
+    "ldapsearch",
+    "-x",
+    "-H", LDAP_SERVER,
+    "-D", BIND_DN,
+    "-w", PASSWORD,
+    "-b", BASE_DN,
+    f"(&(objectClass=groupOfNames)(cn={GROUP_CN}))",
+    "member"
+]
+
+result = subprocess.run(group_cmd, capture_output=True, text=True)
+
+if result.returncode != 0:
+    print("LDAP query failed")
+    print(result.stderr)
+    exit(1)
+
+# =========================
+# EXTRACT MEMBER DNS
+# =========================
+member_dns = re.findall(r"^member:\s(.+)$", result.stdout, re.MULTILINE)
+
+print(f"Found {len(member_dns)} members")
+
+# =========================
+# FETCH USER DETAILS
+# =========================
+users = []
+
+for dn in member_dns:
+
+    user_cmd = [
+        "ldapsearch",
+        "-x",
+        "-H", LDAP_SERVER,
+        "-D", BIND_DN,
+        "-w", PASSWORD,
+        "-b", dn,
+        "(objectClass=*)",
+        "cn",
+        "mail",
+        "uid"
+    ]
+
+    user_result = subprocess.run(user_cmd, capture_output=True, text=True)
+
+    if user_result.returncode != 0:
+        continue
+
+    cn_match = re.search(r"^cn:\s(.+)$", user_result.stdout, re.MULTILINE)
+    mail_match = re.search(r"^mail:\s(.+)$", user_result.stdout, re.MULTILINE)
+    uid_match = re.search(r"^uid:\s(.+)$", user_result.stdout, re.MULTILINE)
+
+    users.append({
+        "cn": cn_match.group(1) if cn_match else "",
+        "uid": uid_match.group(1) if uid_match else "",
+        "mail": mail_match.group(1) if mail_match else "",
+        "dn": dn
+    })
+
+# =========================
+# WRITE CSV
+# =========================
+with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as csvfile:
+
+    fieldnames = ["cn", "uid", "mail", "dn"]
+
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    writer.writeheader()
+
+    for user in users:
+        writer.writerow(user)
+
+print(f"CSV exported successfully: {OUTPUT_CSV}")
