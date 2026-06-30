@@ -1,0 +1,71 @@
+<!-- OPERATION STATUS OF DELIVERABLE -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-family:Calibri, Arial, sans-serif;font-size:14px;">
+
+    <!-- Header -->
+    <tr>
+        <td colspan="3" style="background:#0B6B4A;color:#FFFFFF;padding:10px 12px;font-size:16px;font-weight:bold;border:1px solid #BFBFBF;">
+            OPERATION STATUS OF DELIVERABLE
+        </td>
+    </tr>
+
+    <!-- Overall Status -->
+    <tr>
+        <td colspan="3" style="padding:8px;font-weight:bold;border:1px solid #BFBFBF;background:#F2F2F2;">
+            Overall operation status
+        </td>
+    </tr>
+
+    <tr style="background:#D9D9D9;font-weight:bold;text-align:center;">
+        <td style="border:1px solid #BFBFBF;padding:8px;width:20%;">Status</td>
+        <td style="border:1px solid #BFBFBF;padding:8px;width:20%;">Operation</td>
+        <td style="border:1px solid #BFBFBF;padding:8px;">Summary</td>
+    </tr>
+
+    <tr>
+        <td style="border:1px solid #BFBFBF;padding:8px;text-align:center;">
+            OVERALL
+        </td>
+
+        <td style="border:1px solid #BFBFBF;padding:8px;background:#FFC000;font-weight:bold;text-align:center;">
+            IN PROGRESS
+        </td>
+
+        <td style="border:1px solid #BFBFBF;padding:8px;">
+            Start of actions for clean the different policies.
+        </td>
+    </tr>
+
+    <!-- Space -->
+    <tr>
+        <td colspan="3" style="height:15px;"></td>
+    </tr>
+
+    <!-- Component Indicators -->
+    <tr>
+        <td colspan="3" style="padding:8px;font-weight:bold;border:1px solid #BFBFBF;background:#F2F2F2;">
+            Component indicators
+        </td>
+    </tr>
+
+    <tr style="background:#D9D9D9;font-weight:bold;text-align:center;">
+        <td style="border:1px solid #BFBFBF;padding:8px;">Components</td>
+        <td style="border:1px solid #BFBFBF;padding:8px;">Status</td>
+        <td style="border:1px solid #BFBFBF;padding:8px;">Notes</td>
+    </tr>
+
+    <tr>
+        <td style="border:1px solid #BFBFBF;padding:8px;">
+            F_B_INTRA9
+        </td>
+
+        <td style="border:1px solid #BFBFBF;padding:8px;background:#FFC000;font-weight:bold;text-align:center;">
+            IN PROGRESS
+        </td>
+
+        <td style="border:1px solid #BFBFBF;padding:8px;">
+            • Backup completed<br>
+            • Clean rules with no HIT
+        </td>
+    </tr>
+
+</table>
