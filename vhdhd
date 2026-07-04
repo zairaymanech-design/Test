@@ -1,0 +1,47 @@
+import re
+import csv
+
+add_pattern = re.compile(
+    r"Added uid\s*:.*?to group\s+(.*?),\s*list uid\s*\[([^\]]+)\]",
+    re.IGNORECASE
+)
+
+remove_pattern = re.compile(
+    r"Removed uid\s*:.*?from\s+(.*?),\s*list uid\s*\[([^\]]+)\]",
+    re.IGNORECASE
+)
+
+data = {}
+
+with open("log.txt", encoding="utf-8") as f:
+    for line in f:
+        # ADD
+        m = add_pattern.search(line)
+        if m:
+            group = m.group(1).strip()
+            uid = m.group(2).strip()
+
+            data.setdefault(uid, {})
+            data[uid]["added_to"] = group
+            continue
+
+        # REMOVE
+        m = remove_pattern.search(line)
+        if m:
+            group = m.group(1).strip()
+            uid = m.group(2).strip()
+
+            data.setdefault(uid, {})
+            data[uid]["removed_from"] = group
+
+# WRITE CSV (ONE ROW PER UID)
+with open("output.csv", "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["LIST_UID", "Removed_From", "Added_To"])
+
+    for uid, info in data.items():
+        writer.writerow([
+            uid,
+            info.get("removed_from", ""),
+            info.get("added_to", "")
+        ])
