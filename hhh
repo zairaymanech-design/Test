@@ -1,0 +1,37 @@
+import re
+import csv
+
+pattern = re.compile(
+    r"we will (add|remove).*?([A-Za-z0-9_.\- ]+)\s+\[([^\]]+)\]",
+    re.IGNORECASE
+)
+
+changes = {}
+
+with open("log.txt", encoding="utf-8") as f:
+    for line in f:
+        m = pattern.search(line)
+        if not m:
+            continue
+
+        action = m.group(1).lower()
+        group = m.group(2).strip()
+        uid = m.group(3).strip()
+
+        if uid not in changes:
+            changes[uid] = {
+                "removed_from": "",
+                "added_to": ""
+            }
+
+        if action == "remove":
+            changes[uid]["removed_from"] = group
+        else:
+            changes[uid]["added_to"] = group
+
+with open("changes.csv", "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["LIST_UID", "Removed_From", "Added_To"])
+
+    for uid, data in changes.items():
+        writer.writerow([uid, data["removed_from"], data["added_to"]])
