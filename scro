@@ -1,0 +1,6 @@
+#!/bin/bash
+PID=$(pgrep -f "your-jar-name.jar")
+CPU=$(ps -p $PID -o %cpu= | awk '{print int($1)}')
+if [ "$CPU" -gt 90 ]; then
+  jstack $PID > /var/log/threaddump_$(date +%s).txt
+fi
