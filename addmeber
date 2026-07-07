@@ -1,0 +1,12 @@
+public void addMemberToGroup(String groupName, String uid) {
+    Name groupDn = buildGroupDn(groupName);
+    Name personDn = buildPersonDn(uid);
+    if (!isMemberOfGroup(groupName, personDn) && !groupName.equals("0")) {
+        log.info("on ajoute le user {} dans le group {}", uid, groupName);
+        ModificationItem item = new ModificationItem(
+            DirContext.ADD_ATTRIBUTE,
+            new BasicAttribute(UNIQUEMEMBER, personDn.toString())
+        );
+        ldapTemplate.modifyAttributes(groupDn, new ModificationItem[]{item});
+    }
+}
