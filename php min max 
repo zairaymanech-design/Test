@@ -1,0 +1,63 @@
+public class IpRangeUtils {
+
+    /**
+     * Computes [min, max] IP values (as unsigned 32-bit longs) for a given
+     * IP or IP/CIDR string, equivalent to the PHP calcIpMinMaxClause logic.
+     *
+     * Examples:
+     *   "10.9.98.0/24" -> [168387072, 168387327]
+     *   "10.9.98.5"    -> [168387077, 168387077]
+     */
+    public static long[] calcIpMinMax(String ipServer) {
+        String normalized = normIpValue(ipServer); // implement to mirror your PHP normIpValue
+        String[] ipInfo = normalized.split("/");
+
+        long ip = inetAton(ipInfo[0]);
+
+        if (ipInfo.length == 2) {
+            int cdir = Integer.parseInt(ipInfo[1]);
+
+            long hostBits = 32 - cdir;
+            // hostMask = (1 << hostBits) - 1, guard against shift by 32
+            long hostMask = (hostBits == 32) ? 0xFFFFFFFFL : ((1L << hostBits) - 1);
+            long netMask = 0xFFFFFFFFL & ~hostMask & 0xFFFFFFFFL;
+
+            long min = ip & netMask;
+            long max = ip | hostMask;
+
+            return new long[] { min, max };
+        } else {
+            // single IP, no mask
+            return new long[] { ip, ip };
+        }
+    }
+
+    /** Equivalent of MySQL INET_ATON: converts dotted-quad IPv4 string to unsigned long. */
+    public static long inetAton(String ip) {
+        String[] parts = ip.trim().split("\\.");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("Invalid IPv4 address: " + ip);
+        }
+        long result = 0;
+        for (String part : parts) {
+            int octet = Integer.parseInt(part);
+            if (octet < 0 || octet > 255) {
+                throw new IllegalArgumentException("Invalid octet in IP: " + ip);
+            }
+            result = (result << 8) | octet;
+        }
+        return result;
+    }
+
+    // Stub — mirror whatever your PHP RessourceUtils::normIpValue actually does
+    // (e.g. trimming whitespace, stripping leading zeros, validating format, etc.)
+    private static String normIpValue(String ipServer) {
+        return ipServer.trim();
+    }
+
+    public static void main(String[] args) {
+        long[] range = calcIpMinMax("10.9.98.0/24");
+        System.out.println("min=" + range[0] + " max=" + range[1]);
+        // min=168387072 max=168387327
+    }
+}
