@@ -1,0 +1,52 @@
+CREATE OR REPLACE FUNCTION check_overlap(value1 VARCHAR, value2 VARCHAR)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    arr1 VARCHAR[];
+    arr2 VARCHAR[];
+    tok1 VARCHAR;
+    tok2 VARCHAR;
+    low1 INT; high1 INT;
+    low2 INT; high2 INT;
+BEGIN
+    IF value1 IS NULL OR value2 IS NULL OR value1 = '' OR value2 = '' THEN
+        RETURN FALSE;
+    END IF;
+
+    arr1 := string_to_array(value1, ',');
+    arr2 := string_to_array(value2, ',');
+
+    FOREACH tok1 IN ARRAY arr1 LOOP
+        tok1 := trim(tok1);
+        IF tok1 = '' THEN CONTINUE; END IF;
+
+        IF position('-' IN tok1) > 0 THEN
+            low1  := split_part(tok1, '-', 1)::int;
+            high1 := split_part(tok1, '-', 2)::int;
+        ELSE
+            low1  := tok1::int;
+            high1 := tok1::int;
+        END IF;
+
+        FOREACH tok2 IN ARRAY arr2 LOOP
+            tok2 := trim(tok2);
+            IF tok2 = '' THEN CONTINUE; END IF;
+
+            IF position('-' IN tok2) > 0 THEN
+                low2  := split_part(tok2, '-', 1)::int;
+                high2 := split_part(tok2, '-', 2)::int;
+            ELSE
+                low2  := tok2::int;
+                high2 := tok2::int;
+            END IF;
+
+            IF low1 <= high2 AND low2 <= high1 THEN
+                RETURN TRUE;
+            END IF;
+        END LOOP;
+    END LOOP;
+
+    RETURN FALSE;
+END;
+$$;
