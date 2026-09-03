@@ -1,0 +1,66 @@
+export function processInChunksProgressive<T, R>(
+  items: T[],
+  chunkSize: number,
+  transformFn: (item: T) => R,
+  onChunk: (partialResult: R[]) => void,   // called after EVERY chunk
+  onComplete?: (result: R[]) => void
+): void {
+  const result: R[] = [];
+  let i = 0;
+
+  function step() {
+    const end = Math.min(i + chunkSize, items.length);
+    for (; i < end; i++) {
+      result.push(transformFn(items[i]));
+    }
+    onChunk(result.slice()); // push a snapshot to the caller
+    if (i < items.length) {
+      setTimeout(step);
+    } else {
+      onComplete?.(result);
+    }
+  }
+
+  step();
+}
+
+
+
+
+generateReport(): void {
+  const option = '?ids=' + this.selectedteams.map(s => String(s.id)).join(',');
+
+  this.http.get<Record<string, RawKpiRow>>(
+    this.applicationConfigService.getEndpointFor(`${this.apiList[this.selectedValue]}${option}`)
+  ).subscribe(ret => {
+    const keys = Object.keys(ret);
+
+    processInChunksProgressive(
+      keys,
+      5000,
+      k => this.convertArrayObjectToMetaData(ret[k]),
+      partial => {
+        this.dataSource.data = partial; // table updates every 5000 rows
+      },
+      full => {
+        this.allData = full;
+        this.selectedHeader();
+        setTimeout(() => {
+          this.dataSource.paginator = this.paginator;
+          if (this.dataSource.paginator) this.dataSource.paginator.firstPage();
+        });
+      }
+    );
+  });
+}
+
+
+
+let chunkCount = 0;
+processInChunksProgressive(keys, 5000, transformFn,
+  partial => {
+    chunkCount++;
+    if (chunkCount % 10 === 0) this.dataSource.data = partial;
+  },
+  full => { this.dataSource.data = full; /* ... */ }
+);
