@@ -1,0 +1,28 @@
+private pushInChunks(items: any[], chunkSize = 15): void {
+  let index = 0;
+
+  const pushNextChunk = () => {
+    const chunk = items.slice(index, index + chunkSize);
+    chunk.forEach(v => this.ELEMENT_DATA.push(this.convertArrayObjectToMetaData(v)));
+    index += chunkSize;
+
+    if (index < items.length) {
+      // yields to the browser between chunks so it doesn't freeze
+      setTimeout(pushNextChunk, 0);
+    } else {
+      // all data pushed — now safe to hook up the paginator
+      this.dataSource.data = this.ELEMENT_DATA;
+      this.setupPaginator();
+    }
+  };
+
+  pushNextChunk();
+}
+
+private setupPaginator(): void {
+  this.dataSource.paginator = this.paginator;
+  this.paginator.pageSize = 15;
+  if (this.dataSource.paginator) {
+    this.dataSource.paginator.firstPage();
+  }
+}
