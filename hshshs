@@ -1,0 +1,48 @@
+<div *ngIf="loading" class="kpi-loading">
+  <mat-progress-bar mode="determinate" [value]="progress"></mat-progress-bar>
+  <span>{{ loadedCount }} / {{ totalCount }} ({{ progress }}%)</span>
+</div>
+
+
+export class KpiTeamsComponent {
+  loading = false;
+  progress = 0; // 0-100
+  loadedCount = 0;
+  totalCount = 0;
+
+  private readonly CHUNK_SIZE = 500;
+
+  async loadDataInChunks(filters: any) {
+    this.loading = true;
+    this.loadedCount = 0;
+    this.progress = 0;
+
+    // 1. Get total count first
+    this.totalCount = await firstValueFrom(this.kpiService.getCount(filters));
+
+    if (this.totalCount === 0) {
+      this.loading = false;
+      return;
+    }
+
+    const allData: any[] = [];
+    let offset = 0;
+
+    while (offset < this.totalCount) {
+      const chunk = await firstValueFrom(
+        this.kpiService.getChunk(filters, offset, this.CHUNK_SIZE)
+      );
+
+      allData.push(...chunk);
+      offset += chunk.length;
+      this.loadedCount = offset;
+      this.progress = Math.min(100, Math.round((this.loadedCount / this.totalCount) * 100));
+
+      // let Angular repaint the progress bar before next request
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    this.dataSource.data = allData;
+    this.loading = false;
+  }
+}
