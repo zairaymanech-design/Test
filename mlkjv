@@ -1,0 +1,142 @@
+<table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z2">
+
+  <!-- Column definitions -->
+  <ng-container matColumnDef="col1">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 1</th>
+    <td mat-cell *matCellDef="let row">{{ row.col1 }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="col2">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 2</th>
+    <td mat-cell *matCellDef="let row">{{ row.col2 }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="col3">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 3</th>
+    <td mat-cell *matCellDef="let row">{{ row.col3 }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="col4">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 4</th>
+    <td mat-cell *matCellDef="let row">{{ row.col4 }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="col5">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 5</th>
+    <td mat-cell *matCellDef="let row">{{ row.col5 }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="col6">
+    <th mat-header-cell *matHeaderCellDef mat-sort-header>Column 6</th>
+    <td mat-cell *matCellDef="let row">{{ row.col6 }}</td>
+  </ng-container>
+
+  <!-- Filter row: one ng-container per column, each with its own input -->
+  <ng-container matColumnDef="col1-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col1', $event)">
+    </th>
+  </ng-container>
+  <ng-container matColumnDef="col2-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col2', $event)">
+    </th>
+  </ng-container>
+  <ng-container matColumnDef="col3-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col3', $event)">
+    </th>
+  </ng-container>
+  <ng-container matColumnDef="col4-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col4', $event)">
+    </th>
+  </ng-container>
+  <ng-container matColumnDef="col5-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col5', $event)">
+    </th>
+  </ng-container>
+  <ng-container matColumnDef="col6-filter">
+    <th mat-header-cell *matHeaderCellDef>
+      <input matInput placeholder="Filter" (keyup)="onFilterChange('col6', $event)">
+    </th>
+
+
+
+
+
+
+
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatSort } from '@angular/material/sort';
+import { MatPaginator } from '@angular/material/paginator';
+
+export interface RowData {
+  col1: string;
+  col2: string;
+  col3: string;
+  col4: string;
+  col5: string;
+  col6: string;
+}
+
+@Component({
+  selector: 'app-filterable-table',
+  templateUrl: './filterable-table.component.html',
+})
+export class FilterableTableComponent implements OnInit {
+  displayedColumns: string[] = ['col1', 'col2', 'col3', 'col4', 'col5', 'col6'];
+  dataSource = new MatTableDataSource<RowData>([]);
+
+  filterValues = {
+    col1: '',
+    col2: '',
+    col3: '',
+    col4: '',
+    col5: '',
+    col6: '',
+  };
+
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  ngOnInit(): void {
+    // dataSource.data = yourRows;
+    this.dataSource.filterPredicate = this.createFilter();
+    this.dataSource.sort = this.sort;
+    this.dataSource.paginator = this.paginator;
+  }
+
+  onFilterChange(column: keyof RowData, event: Event): void {
+    const value = (event.target as HTMLInputElement).value.trim().toLowerCase();
+    this.filterValues[column] = value;
+    // Triggers filterPredicate; value itself is irrelevant as long as it changes
+    this.dataSource.filter = Math.random().toString();
+  }
+
+  private createFilter(): (data: RowData, filter: string) => boolean {
+    return (data: RowData): boolean => {
+      return (
+        (!this.filterValues.col1 || data.col1?.toLowerCase().includes(this.filterValues.col1)) &&
+        (!this.filterValues.col2 || data.col2?.toLowerCase().includes(this.filterValues.col2)) &&
+        (!this.filterValues.col3 || data.col3?.toLowerCase().includes(this.filterValues.col3)) &&
+        (!this.filterValues.col4 || data.col4?.toLowerCase().includes(this.filterValues.col4)) &&
+        (!this.filterValues.col5 || data.col5?.toLowerCase().includes(this.filterValues.col5)) &&
+        (!this.filterValues.col6 || data.col6?.toLowerCase().includes(this.filterValues.col6))
+      );
+    };
+  }
+}
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-header-row *matHeaderRowDef="['col1-filter','col2-filter','col3-filter','col4-filter','col5-filter','col6-filter']"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+
+<mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+
+
+
