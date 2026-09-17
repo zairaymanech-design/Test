@@ -1,0 +1,77 @@
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { UserRapportService } from './user-rapport.service';
+import { RAPPORT_COLUMNS } from './rapport-columns.config';
+
+@Component({
+  selector: 'jhi-user-rapport',
+  templateUrl: './user-rapport.component.html'
+})
+export class UserRapportComponent implements OnInit {
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  columns = RAPPORT_COLUMNS;
+  displayedColumns: string[] = this.columns.map(c => c.key);
+
+  dataSource: any[] = [];
+  totalElements = 0;
+  totalPages = 0;
+  pageSize = 20;
+  pageIndex = 0;
+  loading = false;
+
+  selectedTeamsId: number[] | null = null;
+
+  filterForm: FormGroup;
+
+  constructor(private rapportService: UserRapportService, private fb: FormBuilder) {
+    const group: { [key: string]: any } = {};
+    this.columns.filter(c => c.filterable).forEach(c => {
+      group[c.key] = [''];
+    });
+    this.filterForm = this.fb.group(group);
+  }
+
+  ngOnInit(): void {
+    this.loadPage();
+
+    this.filterForm.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+      this.pageIndex = 0;
+      if (this.paginator) {
+        this.paginator.firstPage();
+      }
+      this.loadPage();
+    });
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadPage();
+  }
+
+  loadPage(): void {
+    this.loading = true;
+    this.rapportService.query(this.selectedTeamsId, this.filterForm.value, this.pageIndex, this.pageSize).subscribe({
+      next: (page: any) => {
+        this.dataSource = page.content;
+        this.totalElements = page.totalElements;
+        this.totalPages = page.totalPages;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+      }
+    });
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset();
+  }
+
+  getCell(row: any, key: string): any {
+    return row[key];
+  }
+}
