@@ -1,0 +1,160 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { SERVER_API_URL } from 'app/app.constants';
+
+@Injectable({ providedIn: 'root' })
+export class UserRapportService {
+  private resourceUrl = SERVER_API_URL + 'api/rapport-member';
+
+  constructor(private http: HttpClient) {}
+
+  query(
+    teamsId: number[] | null,
+    filter: any,
+    page: number,
+    size: number,
+    sortField?: string,
+    sortDirection?: string
+  ): Observable<any> {
+    let params = new HttpParams().set('page', page.toString()).set('size', size.toString());
+
+    if (sortField) {
+      params = params.set('sort', `${sortField},${sortDirection || 'asc'}`);
+    }
+
+    if (teamsId && teamsId.length > 0) {
+      teamsId.forEach(id => {
+        params = params.append('teamsId', id.toString());
+      });
+    }
+
+    Object.keys(filter || {}).forEach(key => {
+      const value = filter[key];
+      if (value !== null && value !== undefined && value !== '') {
+        params = params.set(key, value);
+      }
+    });
+
+    return this.http.get<any>(this.resourceUrl, { params });
+  }
+}
+
+
+
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSort, Sort } from '@angular/material/sort';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { UserRapportService } from './user-rapport.service';
+import { RAPPORT_COLUMNS } from './rapport-columns.config';
+
+@Component({
+  selector: 'jhi-user-rapport',
+  templateUrl: './user-rapport.component.html'
+})
+export class UserRapportComponent implements OnInit {
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  columns = RAPPORT_COLUMNS;
+  displayedColumns: string[] = this.columns.map(c => c.key);
+
+  dataSource: MatTableDataSource<any> = new MatTableDataSource<any>([]);
+
+  totalElements = 0;
+  totalPages = 0;
+  pageSize = 500;
+  pageIndex = 0;
+  sortField = '';
+  sortDirection = '';
+  loading = false;
+  error = false;
+
+  selectedTeamsId: number[] | null = null;
+
+  filterForm: FormGroup;
+
+  // page cache: key = pageIndex, value = cached rows for that page
+  private pageCache = new Map<number, any[]>();
+
+  constructor(private rapportService: UserRapportService, private fb: FormBuilder) {
+    const group: { [key: string]: any } = {};
+    this.columns.filter(c => c.filterable).forEach(c => {
+      group[c.key] = [''];
+    });
+    this.filterForm = this.fb.group(group);
+  }
+
+  ngOnInit(): void {
+    this.loadFirstPage();
+  }
+
+  loadFirstPage(): void {
+    this.pageIndex = 0;
+    this.pageCache.clear();
+    if (this.paginator) {
+      this.paginator.firstPage();
+    }
+    this.fetchPage(0);
+  }
+
+  applyFilter(): void {
+    this.pageCache.clear();
+    this.loadFirstPage();
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset();
+    this.applyFilter();
+  }
+
+  onSortChange(sort: Sort): void {
+    this.sortField = sort.direction ? sort.active : '';
+    this.sortDirection = sort.direction;
+    this.pageCache.clear();
+    this.loadFirstPage();
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.fetchPage(this.pageIndex);
+  }
+
+  setTeamsFilter(teamsId: number[] | null): void {
+    this.selectedTeamsId = teamsId;
+    this.pageCache.clear();
+    this.loadFirstPage();
+  }
+
+  private fetchPage(pageIndex: number): void {
+    // serve from cache if we've already loaded this page for the current filter/sort state
+    if (this.pageCache.has(pageIndex)) {
+      this.dataSource.data = this.pageCache.get(pageIndex) as any[];
+      return;
+    }
+
+    this.loading = true;
+    this.error = false;
+    this.rapportService
+      .query(this.selectedTeamsId, this.filterForm.value, pageIndex, this.pageSize, this.sortField, this.sortDirection)
+      .subscribe({
+        next: (page: any) => {
+          this.pageCache.set(pageIndex, page.content);
+          this.dataSource.data = page.content;
+          this.totalElements = page.totalElements;
+          this.totalPages = page.totalPages;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.error = true;
+        }
+      });
+  }
+
+  getCell(row: any, key: string): any {
+    return row[key];
+  }
+}
