@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+7import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -74,4 +74,83 @@ export class UserRapportComponent implements OnInit {
   getCell(row: any, key: string): any {
     return row[key];
   }
+}
+
+
+
+
+
+
+
+
+
+
+
+loading = false;
+loadedCount = 0;
+totalCount = 0;
+progress = 0;
+
+exportCSV(): void {
+  this.loading = true;
+  this.loadedCount = 0;
+  this.progress = 0;
+
+  const exportPageSize = 500; // reuse the same chunk size as your table fetch
+  const allRows: any[] = [];
+
+  this.fetchAllPages(0, exportPageSize, allRows);
+}
+
+private fetchAllPages(page: number, size: number, accumulated: any[]): void {
+  this.reportService
+    .query(this.config.apiPath, this.teamsId, this.filterValues, page, size, this.sortField, this.sortDirection)
+    .subscribe({
+      next: (result: any) => {
+        accumulated.push(...result.content);
+        this.loadedCount = accumulated.length;
+        this.totalCount = result.totalElements;
+        this.progress = this.totalCount > 0 ? Math.round((this.loadedCount / this.totalCount) * 100) : 100;
+
+        if (accumulated.length < result.totalElements) {
+          this.fetchAllPages(page + 1, size, accumulated);
+        } else {
+          this.downloadCSV(accumulated);
+          this.loading = false;
+        }
+      },
+      error: () => {
+        this.loading = false;
+      }
+    });
+}
+
+private downloadCSV(rows: any[]): void {
+  const columns = this.config.columns.map(c => c.key);
+  const headerLabels = this.config.columns.map(c => c.label);
+
+  const escapeCsv = (value: any): string => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const str = String(value);
+    if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headerLine = headerLabels.map(escapeCsv).join(';');
+  const dataLines = rows.map(row => columns.map(col => escapeCsv(row[col])).join(';'));
+  const csvContent = [headerLine, ...dataLines].join('\n');
+
+  // BOM prefix so Excel correctly detects UTF-8 (accents, special chars)
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `export_${this.config.id}_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  window.URL.revokeObjectURL(url);
 }
