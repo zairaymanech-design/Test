@@ -1,0 +1,133 @@
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSort, Sort } from '@angular/material/sort';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { UserRapportService } from './user-rapport.service';
+import { RAPPORT_COLUMNS } from './rapport-columns.config';
+
+const SERVER_CHUNK_SIZE = 500;
+
+@Component({
+  selector: 'jhi-user-rapport',
+  templateUrl: './user-rapport.component.html'
+})
+export class UserRapportComponent implements OnInit {
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  columns = RAPPORT_COLUMNS;
+  displayedColumns: string[] = this.columns.map(c => c.key);
+
+  dataSource: MatTableDataSource<any> = new MatTableDataSource<any>([]);
+
+  totalElements = 0;
+  displayPageSize = 20;
+  displayPageIndex = 0;
+  sortField = '';
+  sortDirection = '';
+  loading = false;
+  error = false;
+
+  selectedTeamsId: number[] | null = null;
+
+  filterForm: FormGroup;
+
+  // cache of 500-row server chunks: key = server chunk index, value = 500 rows
+  private chunkCache = new Map<number, any[]>();
+
+  constructor(private rapportService: UserRapportService, private fb: FormBuilder) {
+    const group: { [key: string]: any } = {};
+    this.columns.filter(c => c.filterable).forEach(c => {
+      group[c.key] = [''];
+    });
+    this.filterForm = this.fb.group(group);
+  }
+
+  ngOnInit(): void {
+    this.loadFirstPage();
+  }
+
+  loadFirstPage(): void {
+    this.displayPageIndex = 0;
+    this.chunkCache.clear();
+    if (this.paginator) {
+      this.paginator.firstPage();
+    }
+    this.fetchDisplayPage(0);
+  }
+
+  applyFilter(): void {
+    this.chunkCache.clear();
+    this.loadFirstPage();
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset();
+    this.applyFilter();
+  }
+
+  onSortChange(sort: Sort): void {
+    this.sortField = sort.direction ? sort.active : '';
+    this.sortDirection = sort.direction;
+    this.chunkCache.clear();
+    this.loadFirstPage();
+  }
+
+  onPageChange(event: PageEvent): void {
+    if (event.pageSize !== this.displayPageSize) {
+      // display page size changed — chunk boundaries shift, must reload from scratch
+      this.displayPageSize = event.pageSize;
+      this.chunkCache.clear();
+      this.displayPageIndex = 0;
+      this.fetchDisplayPage(0);
+      return;
+    }
+
+    this.displayPageIndex = event.pageIndex;
+    this.fetchDisplayPage(this.displayPageIndex);
+  }
+
+  setTeamsFilter(teamsId: number[] | null): void {
+    this.selectedTeamsId = teamsId;
+    this.chunkCache.clear();
+    this.loadFirstPage();
+  }
+
+  private fetchDisplayPage(displayPageIndex: number): void {
+    const globalOffset = displayPageIndex * this.displayPageSize;
+    const chunkIndex = Math.floor(globalOffset / SERVER_CHUNK_SIZE);
+    const offsetWithinChunk = globalOffset % SERVER_CHUNK_SIZE;
+
+    if (this.chunkCache.has(chunkIndex)) {
+      this.applyChunkSlice(chunkIndex, offsetWithinChunk);
+      return;
+    }
+
+    this.loading = true;
+    this.error = false;
+    this.rapportService
+      .query(this.selectedTeamsId, this.filterForm.value, chunkIndex, SERVER_CHUNK_SIZE, this.sortField, this.sortDirection)
+      .subscribe({
+        next: (page: any) => {
+          this.chunkCache.set(chunkIndex, page.content);
+          this.totalElements = page.totalElements;
+          this.applyChunkSlice(chunkIndex, offsetWithinChunk);
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.error = true;
+        }
+      });
+  }
+
+  private applyChunkSlice(chunkIndex: number, offsetWithinChunk: number): void {
+    const chunk = this.chunkCache.get(chunkIndex) as any[];
+    this.dataSource.data = chunk.slice(offsetWithinChunk, offsetWithinChunk + this.displayPageSize);
+  }
+
+  getCell(row: any, key: string): any {
+    return row[key];
+  }
+}
